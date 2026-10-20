@@ -39,5 +39,5 @@ public/              Giao diện: index.html, host.html, play.html, css/, js/
 
 Lưu ý: phòng chơi nằm trong bộ nhớ của máy chủ. Gói Free sẽ ngủ sau ~15 phút không có truy cập và khi đó mọi phòng bị mất; hãy mở trang trước giờ chơi vài phút. Khi triển khai bản mới, các ván đang chơi cũng bị mất.
 
-Contributer: @nguyenvanhoanglong478-source, @anhmt821152-ctrl
+Contributer: @nguyenvanhoanglong478-source, @anhmt821152-ctrl, @Claude
 
