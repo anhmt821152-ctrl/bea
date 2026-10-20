@@ -1,7 +1,7 @@
-const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({
+const escapeHTML = (str) => String(str).replace(/[&<>'"]/g, tag => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[tag] || tag));
-  
+
 function getBadge(score) {
     if (score >= 1200) return { name: 'Kim cương', color: '#B9F2FF' };
     if (score >= 700) return { name: 'Vàng', color: '#FFD700' };
@@ -15,4 +15,19 @@ function createCarSVG(color) {
         <circle class="wheel" cx="25" cy="30" r="8" fill="#333" stroke="#fff" stroke-width="2"/>
         <circle class="wheel" cx="75" cy="30" r="8" fill="#333" stroke="#fff" stroke-width="2"/>
     </svg>`;
+}
+
+// Countdown driven by the clock (not by counting ticks), so it stays accurate
+// even when a mobile browser throttles timers. Returns a function that stops it.
+function startCountdown(el, seconds) {
+    const endAt = Date.now() + seconds * 1000;
+    let id = null;
+    const tick = () => {
+        const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+        el.innerText = `${left}s`;
+        if (left <= 0 && id) { clearInterval(id); id = null; }
+    };
+    tick();
+    id = setInterval(tick, 250);
+    return () => { if (id) { clearInterval(id); id = null; } };
 }

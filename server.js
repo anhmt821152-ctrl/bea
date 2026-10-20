@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const crypto = require('crypto');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
@@ -9,16 +10,26 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
 
-// Load questions
+// ---------------------------------------------------------------------------
+// Questions (validated at startup so a bad data file fails loudly and early)
+// ---------------------------------------------------------------------------
 const questions = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/questions.json'), 'utf-8'));
+questions.forEach((q, i) => {
+  const ok = q && typeof q.text === 'string' && Array.isArray(q.options) && q.options.length === 4 &&
+    q.options.every((o) => typeof o === 'string') && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3;
+  if (!ok) throw new Error(`data/questions.json: cau hoi so ${i + 1} khong hop le (can text, 4 options, answer 0-3)`);
+});
+if (questions.length === 0) throw new Error('data/questions.json: khong co cau hoi nao');
 
-// Game Config
+// ---------------------------------------------------------------------------
+// Game config
+// ---------------------------------------------------------------------------
 const CONFIG = {
   maxPlayersPerTeam: 30,
   maxQuestions: 15,
-  timePerQuestion: 20, // seconds
+  timePerQuestion: Number(process.env.TIME_PER_QUESTION) || 20, // seconds
+  resultDelay: Number(process.env.RESULT_DELAY_MS) || 6000, // ms between result and next question
   pointsCorrectBase: 100,
   pointsCorrectSpeedMax: 50,
   pointsCorrectStreak: 20,
@@ -27,30 +38,72 @@ const CONFIG = {
   pushForceCorrectMin: 0.5,
   pushForceIncorrect: -0.3,
   pushForceNoAnswer: 0,
-  maxStepPercent: 100 / (15 * 0.8), // ~8.333%
   roomTimeout: 4 * 60 * 60 * 1000 // 4 hours
 };
 
 // In-memory data
 const rooms = new Map();
 
+// ---------------------------------------------------------------------------
 // Utils
-const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
-const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-}[tag] || tag));
+// ---------------------------------------------------------------------------
+// No 0/O/1/I so codes are easy to read out loud. Always exactly 6 characters.
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const generateCode = () => {
+  let code = '';
+  for (let i = 0; i < 6; i++) code += CODE_CHARS[crypto.randomInt(CODE_CHARS.length)];
+  return code;
+};
+const generateToken = () => crypto.randomBytes(12).toString('hex');
+const isStr = (v) => typeof v === 'string';
+
+const getRoom = (code) => (isStr(code) ? rooms.get(code.toUpperCase()) : undefined);
+const getHostRoom = (socket, code) => {
+  const room = getRoom(code);
+  return room && room.hostSocketId === socket.id ? room : null;
+};
+
+// Wrap every socket handler: payload is always an object and an exception can
+// never crash the whole process.
+function safe(handler) {
+  return (payload) => {
+    try {
+      handler(payload && typeof payload === 'object' ? payload : {});
+    } catch (err) {
+      console.error('Socket handler error:', err);
+    }
+  };
+}
+
+function emitToHost(room, event, data) {
+  if (room.hostSocketId) io.to(room.hostSocketId).emit(event, data);
+}
+
+function clearRoomTimers(room) {
+  if (room.timer) { clearInterval(room.timer); room.timer = null; }
+  if (room.nextTimer) { clearTimeout(room.nextTimer); room.nextTimer = null; }
+}
 
 // Clean inactive rooms periodically (every 1 hour)
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms.entries()) {
-    if (now - room.lastActive > CONFIG.roomTimeout) rooms.delete(code);
+    if (now - room.lastActive > CONFIG.roomTimeout) {
+      clearRoomTimers(room);
+      rooms.delete(code);
+    }
   }
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref();
 
-// API Endpoint for team count
+// ---------------------------------------------------------------------------
+// HTTP endpoints
+// ---------------------------------------------------------------------------
+// Health check (used by Render)
+app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
+// Team count for the join screen
 app.get('/api/room/:code', (req, res) => {
-  const room = rooms.get(req.params.code.toUpperCase());
+  const room = getRoom(req.params.code);
   if (!room) return res.status(404).json({ error: 'Room not found' });
   res.json({
     blue: room.teamBlue.length,
@@ -60,22 +113,25 @@ app.get('/api/room/:code', (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Socket events
+// ---------------------------------------------------------------------------
 io.on('connection', (socket) => {
-  
+
   // HOST EVENTS
-  socket.on('host:create', () => {
+  socket.on('host:create', safe(() => {
     let code = generateCode();
     while (rooms.has(code)) code = generateCode();
-    
-    const hostKey = Math.random().toString(36).substring(2);
+
+    const hostKey = generateToken();
     const room = {
       code, hostSocketId: socket.id, hostKey,
       state: 'lobby', // lobby, question, result, final
       players: new Map(), // pid -> playerData
       teamBlue: [], teamRed: [],
       currentQuestionIndex: -1,
-      questions: [...questions].slice(0, CONFIG.maxQuestions), // Take config amount
-      timer: null, timeLeft: 0,
+      questions: [...questions].slice(0, CONFIG.maxQuestions),
+      timer: null, nextTimer: null, timeLeft: 0,
       posBlue: 0, posRed: 0,
       scoreBlue: 0, scoreRed: 0,
       lastActive: Date.now()
@@ -83,169 +139,160 @@ io.on('connection', (socket) => {
     rooms.set(code, room);
     socket.join(code);
     socket.emit('roomCreated', { code, hostKey });
-  });
+  }));
 
-  socket.on('host:reconnect', ({ code, hostKey }) => {
-    const room = rooms.get(code);
-    if (room && room.hostKey === hostKey) {
+  socket.on('host:reconnect', safe(({ code, hostKey }) => {
+    const room = getRoom(code);
+    if (room && isStr(hostKey) && room.hostKey === hostKey) {
       room.hostSocketId = socket.id;
       room.lastActive = Date.now();
-      socket.join(code);
+      socket.join(room.code);
       socket.emit('host:reconnectData', getRoomStateForHost(room));
+      if (room.state === 'final') socket.emit('server:finalResult', getFinalResult(room));
+      if (room.state === 'question') emitAnswerCount(room);
     } else {
       socket.emit('host:reconnectFailed');
     }
-  });
+  }));
 
-  socket.on('host:start', ({ code }) => {
-    const room = rooms.get(code);
-    if (!room || room.hostSocketId !== socket.id) return;
-    if (room.state !== 'lobby') return;
-    
-    room.state = 'question';
+  socket.on('host:start', safe(({ code }) => {
+    const room = getHostRoom(socket, code);
+    if (!room || room.state !== 'lobby' || room.players.size === 0) return;
+
     room.currentQuestionIndex = 0;
-    room.lastActive = Date.now();
     startQuestion(room);
-  });
+  }));
 
-  socket.on('host:next', ({ code }) => {
-    const room = rooms.get(code);
-    if (!room || room.hostSocketId !== socket.id) return;
-    
-    if (room.posBlue >= 100 || room.posRed >= 100 || room.currentQuestionIndex >= room.questions.length - 1) {
-      room.state = 'final';
-      io.to(code).emit('server:finalResult', getFinalResult(room));
-    } else {
-      room.state = 'question';
-      room.currentQuestionIndex++;
-      startQuestion(room);
-    }
-  });
+  // Host may skip the result pause; otherwise the server advances by itself.
+  socket.on('host:next', safe(({ code }) => {
+    const room = getHostRoom(socket, code);
+    if (!room) return;
+    advance(room);
+  }));
 
-  socket.on('host:playAgain', ({ code }) => {
-    const room = rooms.get(code);
-    if (!room || room.hostSocketId !== socket.id) return;
+  socket.on('host:playAgain', safe(({ code }) => {
+    const room = getHostRoom(socket, code);
+    if (!room || room.state !== 'final') return;
+
+    clearRoomTimers(room);
     room.state = 'lobby';
     room.currentQuestionIndex = -1;
     room.posBlue = 0; room.posRed = 0;
     room.scoreBlue = 0; room.scoreRed = 0;
+    room.lastActive = Date.now();
     for (const p of room.players.values()) {
       p.score = 0; p.streak = 0; p.answers = [];
     }
-    io.to(code).emit('server:backToLobby');
+    io.to(room.code).emit('server:backToLobby');
     socket.emit('host:reconnectData', getRoomStateForHost(room));
-  });
+  }));
 
   // PLAYER EVENTS
-  socket.on('player:join', ({ code, name, teamSelection }) => {
-    code = code.toUpperCase();
-    const room = rooms.get(code);
+  socket.on('player:join', safe(({ code, name, teamSelection }) => {
+    const room = getRoom(code);
     if (!room || room.state !== 'lobby') return socket.emit('joinError', 'Phòng không tồn tại hoặc đã bắt đầu.');
-    
-    const cleanName = escapeHTML(name.trim()).substring(0, 16);
+    if (!isStr(name)) return socket.emit('joinError', 'Tên không hợp lệ.');
+
+    // Names are stored raw; every client escapes them when rendering as HTML.
+    const cleanName = name.trim().replace(/\s+/g, ' ').substring(0, 16).trim();
     if (!cleanName) return socket.emit('joinError', 'Tên không hợp lệ.');
-    
-    // Check duplication
+
     for (const p of room.players.values()) {
-      if (p.name === cleanName) return socket.emit('joinError', 'Tên đã tồn tại trong phòng.');
+      if (p.name.toLowerCase() === cleanName.toLowerCase()) return socket.emit('joinError', 'Tên đã tồn tại trong phòng.');
+      if (p.socketId === socket.id && p.online) return socket.emit('joinError', 'Bạn đã ở trong phòng này rồi.');
     }
 
-    let team = 'blue';
+    let team;
     if (teamSelection === '1') team = 'blue';
     else if (teamSelection === '2') team = 'red';
-    else {
-      team = room.teamBlue.length <= room.teamRed.length ? 'blue' : 'red';
-    }
+    else team = room.teamBlue.length <= room.teamRed.length ? 'blue' : 'red';
 
     if (team === 'blue' && room.teamBlue.length >= CONFIG.maxPlayersPerTeam) return socket.emit('joinError', 'Đội Xanh đã đầy.');
     if (team === 'red' && room.teamRed.length >= CONFIG.maxPlayersPerTeam) return socket.emit('joinError', 'Đội Đỏ đã đầy.');
 
-    const pid = Math.random().toString(36).substring(2, 10);
+    const pid = generateToken();
     const player = {
       pid, socketId: socket.id, name: cleanName, team,
       score: 0, streak: 0, answers: [], online: true
     };
-    
+
     room.players.set(pid, player);
     if (team === 'blue') room.teamBlue.push(pid);
     else room.teamRed.push(pid);
-    
-    room.lastActive = Date.now();
-    socket.join(code);
-    socket.emit('joinSuccess', { pid, code, name: cleanName, team });
-    
-    // Notify host
-    io.to(room.hostSocketId).emit('host:playerJoined', { pid, name: cleanName, team });
-  });
 
-  socket.on('player:reconnect', ({ code, pid }) => {
-    const room = rooms.get(code);
+    room.lastActive = Date.now();
+    socket.join(room.code);
+    socket.emit('joinSuccess', { pid, code: room.code, name: cleanName, team });
+
+    emitToHost(room, 'host:playerJoined', { pid, name: cleanName, team });
+  }));
+
+  socket.on('player:reconnect', safe(({ code, pid }) => {
+    const room = getRoom(code);
     if (!room) return socket.emit('joinError', 'Phòng không tồn tại.');
-    const player = room.players.get(pid);
+    const player = isStr(pid) ? room.players.get(pid) : null;
     if (!player) return socket.emit('joinError', 'Không tìm thấy người chơi.');
 
     player.socketId = socket.id;
     player.online = true;
-    socket.join(code);
-    
+    room.lastActive = Date.now();
+    socket.join(room.code);
+
+    const rec = player.answers.find((a) => a.qIndex === room.currentQuestionIndex);
+    const inQuestion = room.state === 'question';
     socket.emit('player:reconnectData', {
       team: player.team,
       score: player.score,
       state: room.state,
       qIndex: room.currentQuestionIndex,
-      question: room.state === 'question' ? getQuestionDTO(room) : null,
-      answered: room.state === 'question' && player.answers.some(a => a.qIndex === room.currentQuestionIndex),
+      question: inQuestion ? getQuestionDTO(room) : null,
+      answered: inQuestion && !!rec,
+      myAnswer: inQuestion && rec ? rec.answer : null,
       posBlue: room.posBlue, posRed: room.posRed
     });
-  });
+    if (room.state === 'final') socket.emit('server:finalResult', getFinalResultFor(room, player));
+    if (inQuestion) emitAnswerCount(room);
+  }));
 
-  socket.on('player:answer', ({ code, pid, answerIndex }) => {
-    const room = rooms.get(code);
+  socket.on('player:answer', safe(({ code, pid, answerIndex }) => {
+    const room = getRoom(code);
     if (!room || room.state !== 'question') return;
-    const player = room.players.get(pid);
+    const player = isStr(pid) ? room.players.get(pid) : null;
     if (!player || player.socketId !== socket.id) return;
-    
-    // Check if already answered
-    if (player.answers.some(a => a.qIndex === room.currentQuestionIndex)) return;
+
+    const q = room.questions[room.currentQuestionIndex];
+    if (!Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex >= q.options.length) return;
+
+    // Already answered?
+    if (player.answers.some((a) => a.qIndex === room.currentQuestionIndex)) return;
 
     player.answers.push({
       qIndex: room.currentQuestionIndex,
       answer: answerIndex,
       timeRemaining: room.timeLeft
     });
+    room.lastActive = Date.now();
 
     socket.emit('answerAck');
-    
-    // Count answers
-    let answeredCount = 0;
-    let onlineCount = 0;
-    for (const p of room.players.values()) {
-      if (p.online) onlineCount++;
-      if (p.answers.some(a => a.qIndex === room.currentQuestionIndex)) answeredCount++;
-    }
-    
-    io.to(room.hostSocketId).emit('host:answerCount', { answered: answeredCount, total: onlineCount });
+    checkAllAnswered(room);
+  }));
 
-    if (answeredCount >= onlineCount && onlineCount > 0) {
-      endQuestion(room);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    for (const [code, room] of rooms.entries()) {
-      if (room.hostSocketId === socket.id) {
-        // Host disconnected
-      } else {
-        for (const p of room.players.values()) {
-          if (p.socketId === socket.id) {
-            p.online = false;
-          }
+  socket.on('disconnect', safe(() => {
+    for (const room of rooms.values()) {
+      for (const p of room.players.values()) {
+        if (p.socketId === socket.id && p.online) {
+          p.online = false;
+          // The last unanswered player may have just left.
+          if (room.state === 'question') checkAllAnswered(room);
         }
       }
     }
-  });
+  }));
 });
 
+// ---------------------------------------------------------------------------
+// Game logic
+// ---------------------------------------------------------------------------
 function getQuestionDTO(room) {
   const q = room.questions[room.currentQuestionIndex];
   return {
@@ -259,35 +306,57 @@ function getQuestionDTO(room) {
 }
 
 function getRoomStateForHost(room) {
+  const showQuestion = room.state === 'question' || room.state === 'result';
   return {
     state: room.state,
     code: room.code,
-    players: Array.from(room.players.values()).map(p => ({pid: p.pid, name: p.name, team: p.team, score: p.score, online: p.online})),
+    players: Array.from(room.players.values()).map((p) => ({ pid: p.pid, name: p.name, team: p.team, score: p.score, online: p.online })),
     qIndex: room.currentQuestionIndex,
-    question: room.state === 'question' ? getQuestionDTO(room) : null,
+    question: showQuestion && room.currentQuestionIndex >= 0 ? getQuestionDTO(room) : null,
     posBlue: room.posBlue, posRed: room.posRed,
     scoreBlue: room.scoreBlue, scoreRed: room.scoreRed
   };
 }
 
+function countAnswers(room) {
+  let answered = 0;
+  let online = 0;
+  for (const p of room.players.values()) {
+    if (p.online) online++;
+    if (p.answers.some((a) => a.qIndex === room.currentQuestionIndex)) answered++;
+  }
+  return { answered, online };
+}
+
+function emitAnswerCount(room) {
+  const { answered, online } = countAnswers(room);
+  emitToHost(room, 'host:answerCount', { answered, total: online });
+}
+
+function checkAllAnswered(room) {
+  const { answered, online } = countAnswers(room);
+  emitToHost(room, 'host:answerCount', { answered, total: online });
+  if (online > 0 && answered >= online) endQuestion(room);
+}
+
 function startQuestion(room) {
-  if (room.timer) clearInterval(room.timer);
+  clearRoomTimers(room);
   room.timeLeft = CONFIG.timePerQuestion;
   room.state = 'question';
-  
-  const qDTO = getQuestionDTO(room);
-  io.to(room.code).emit('server:question', qDTO);
+  room.lastActive = Date.now();
+
+  io.to(room.code).emit('server:question', getQuestionDTO(room));
+  emitAnswerCount(room);
 
   room.timer = setInterval(() => {
     room.timeLeft--;
-    if (room.timeLeft <= 0) {
-      endQuestion(room);
-    }
+    if (room.timeLeft <= 0) endQuestion(room);
   }, 1000);
 }
 
 function endQuestion(room) {
-  if (room.timer) clearInterval(room.timer);
+  if (room.state !== 'question') return; // already ended (timer and last answer in the same tick)
+  clearRoomTimers(room);
   room.state = 'result';
   room.lastActive = Date.now();
 
@@ -298,9 +367,12 @@ function endQuestion(room) {
   let forceBlue = 0, forceRed = 0;
   const playerResults = {};
 
-  // Calculate scores and forces
+  // Team score is recomputed from the players' current totals every question.
+  room.scoreBlue = 0;
+  room.scoreRed = 0;
+
   for (const [pid, p] of room.players.entries()) {
-    const ansRec = p.answers.find(a => a.qIndex === qIndex);
+    const ansRec = p.answers.find((a) => a.qIndex === qIndex);
     let points = 0;
     let force = 0;
     let isCorrect = false;
@@ -338,25 +410,27 @@ function endQuestion(room) {
     };
   }
 
-  // Update positions
+  // Update positions. A full-force team finishes after ~80% of the questions.
+  const maxStepPercent = 100 / (room.questions.length * 0.8);
   const bCount = room.teamBlue.length;
   const rCount = room.teamRed.length;
-  const bMove = bCount > 0 ? (forceBlue / bCount) * CONFIG.maxStepPercent : 0;
-  const rMove = rCount > 0 ? (forceRed / rCount) * CONFIG.maxStepPercent : 0;
+  const bMove = bCount > 0 ? (forceBlue / bCount) * maxStepPercent : 0;
+  const rMove = rCount > 0 ? (forceRed / rCount) * maxStepPercent : 0;
 
   room.posBlue = Math.max(0, Math.min(100, room.posBlue + bMove));
   room.posRed = Math.max(0, Math.min(100, room.posRed + rMove));
 
   // Option counts
-  const optionsCount = [0,0,0,0];
+  const optionsCount = [0, 0, 0, 0];
   for (const p of room.players.values()) {
-    const ans = p.answers.find(a => a.qIndex === qIndex);
+    const ans = p.answers.find((a) => a.qIndex === qIndex);
     if (ans && ans.answer >= 0 && ans.answer <= 3) {
       optionsCount[ans.answer]++;
     }
   }
 
-  const resultData = {
+  // Send to host
+  emitToHost(room, 'server:questionResult', {
     correctOption,
     optionsCount,
     posBlue: room.posBlue,
@@ -364,10 +438,7 @@ function endQuestion(room) {
     scoreBlue: room.scoreBlue,
     scoreRed: room.scoreRed,
     playerResults // sending to host
-  };
-
-  // Send to host
-  io.to(room.hostSocketId).emit('server:questionResult', resultData);
+  });
 
   // Send individually to players
   for (const [pid, p] of room.players.entries()) {
@@ -379,6 +450,29 @@ function endQuestion(room) {
       });
     }
   }
+
+  // The server moves on by itself, so a host reload can't stall the game.
+  room.nextTimer = setTimeout(() => advance(room), CONFIG.resultDelay);
+}
+
+function advance(room) {
+  if (room.state !== 'result') return;
+  if (room.nextTimer) { clearTimeout(room.nextTimer); room.nextTimer = null; }
+
+  if (room.posBlue >= 100 || room.posRed >= 100 || room.currentQuestionIndex >= room.questions.length - 1) {
+    room.state = 'final';
+    room.lastActive = Date.now();
+    emitFinal(room);
+  } else {
+    room.currentQuestionIndex++;
+    startQuestion(room);
+  }
+}
+
+// Standard competition ranking: players with equal score share a rank.
+function getRanking(room) {
+  const sorted = Array.from(room.players.values()).sort((a, b) => b.score - a.score);
+  return sorted.map((p) => ({ p, rank: 1 + sorted.filter((o) => o.score > p.score).length }));
 }
 
 function getFinalResult(room) {
@@ -390,9 +484,8 @@ function getFinalResult(room) {
     else if (room.scoreRed > room.scoreBlue) winner = 'red';
   }
 
-  const playersArr = Array.from(room.players.values()).sort((a,b) => b.score - a.score);
-  const top10 = playersArr.slice(0, 10).map((p, idx) => ({
-    rank: idx + 1,
+  const top10 = getRanking(room).slice(0, 10).map(({ p, rank }) => ({
+    rank,
     name: p.name,
     team: p.team,
     score: p.score
@@ -401,7 +494,34 @@ function getFinalResult(room) {
   return { winner, top10, posBlue: room.posBlue, posRed: room.posRed, scoreBlue: room.scoreBlue, scoreRed: room.scoreRed };
 }
 
+// Final result plus this player's own rank and score.
+function getFinalResultFor(room, player) {
+  const ranking = getRanking(room);
+  const mine = ranking.find((r) => r.p === player);
+  return {
+    ...getFinalResult(room),
+    me: { rank: mine ? mine.rank : ranking.length, score: player.score, total: ranking.length }
+  };
+}
+
+function emitFinal(room) {
+  emitToHost(room, 'server:finalResult', getFinalResult(room));
+  for (const p of room.players.values()) {
+    if (p.online) io.to(p.socketId).emit('server:finalResult', getFinalResultFor(room, p));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Render sends SIGTERM on every deploy/restart: close cleanly.
+process.on('SIGTERM', () => {
+  io.close();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
 });

@@ -136,7 +136,8 @@ h1, h2, h3 { margin-bottom: 15px; }
 
 /* Player Layout */
 .mobile-container {
-  max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding: 20px;
+  max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column;
+  padding: 20px 20px 90px; /* bottom space so the fixed mini-tracker never covers content */
 }
 .join-form { display: flex; flex-direction: column; gap: 15px; background: var(--panel-bg); padding: 20px; border-radius: 12px; }
 
