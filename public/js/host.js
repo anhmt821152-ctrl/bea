@@ -16,10 +16,69 @@ const screens = {
   final: document.getElementById('screen-final')
 };
 
+let inLobby = true;
+
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
   screens[name].classList.remove('hidden');
+  inLobby = (name === 'lobby');
 }
+
+// The room code is shown like a number plate, one tile per character.
+function renderCode(code) {
+  document.getElementById('room-code-display').innerHTML =
+    Array.from(code).map(c => `<span class="ch">${escapeHTML(c)}</span>`).join('');
+}
+
+// ---- Question set (made in editor.html, stored in this browser) ----
+const setSelect = document.getElementById('set-select');
+const setInfo = document.getElementById('set-info');
+
+function setMessage(text, kind) {
+  setInfo.textContent = text;
+  setInfo.className = 'set-info' + (kind ? ' ' + kind : '');
+}
+
+function refreshSetSelect() {
+  const store = loadSetStore();
+  setSelect.innerHTML = '';
+  const add = (value, label, disabled) => {
+    const o = document.createElement('option');
+    o.value = value; o.textContent = label; o.disabled = !!disabled;
+    setSelect.appendChild(o);
+  };
+  add(DEFAULT_SET_ID, 'Bộ câu hỏi mặc định');
+  store.sets.forEach(s => {
+    const ready = setIsReady(s);
+    add(s.id, `${s.name} (${s.questions.length} câu)${ready ? '' : ' - chưa hoàn chỉnh'}`, !ready);
+  });
+  const usable = store.selected === DEFAULT_SET_ID || store.sets.some(s => s.id === store.selected && setIsReady(s));
+  setSelect.value = usable ? store.selected : DEFAULT_SET_ID;
+  if (!usable) { store.selected = DEFAULT_SET_ID; saveSetStore(store); }
+}
+
+function applySelectedSet() {
+  if (!roomCode || !inLobby) return;
+  const store = loadSetStore();
+  const set = store.sets.find(s => s.id === store.selected);
+  if (store.selected === DEFAULT_SET_ID || !set) {
+    socket.emit('host:setQuestions', { code: roomCode, useDefault: true });
+  } else {
+    socket.emit('host:setQuestions', { code: roomCode, name: set.name, questions: set.questions });
+  }
+}
+
+setSelect.addEventListener('change', () => {
+  const store = loadSetStore();
+  store.selected = setSelect.value;
+  saveSetStore(store);
+  applySelectedSet();
+});
+socket.on('host:questionsSet', ({ name, count }) => setMessage(`Đang dùng: ${name} (${count} câu)`, 'ok'));
+socket.on('host:questionsError', (msg) => setMessage(msg, 'error'));
+// Coming back from the editor tab: pick up new or changed sets.
+window.addEventListener('focus', () => { refreshSetSelect(); applySelectedSet(); });
+refreshSetSelect();
 
 function clearResultTimeouts() {
   resultTimeouts.forEach(clearTimeout);
@@ -27,8 +86,8 @@ function clearResultTimeouts() {
 }
 
 // Inject SVGs
-document.getElementById('group-blue').innerHTML += createCarSVG('#19C3E6');
-document.getElementById('group-red').innerHTML += createCarSVG('#FF5C77');
+document.getElementById('group-blue').innerHTML += createCarSVG('#22c7e8');
+document.getElementById('group-red').innerHTML += createCarSVG('#ff5a76');
 
 // Connection logic. 'connect' also fires after an automatic reconnect (Wi-Fi
 // drop, server restart), so the host always re-claims the room.
@@ -47,9 +106,10 @@ socket.on('roomCreated', ({ code, hostKey }) => {
   players = [];
   sessionStorage.setItem(KEY_CODE, code);
   sessionStorage.setItem(KEY_HOST, hostKey);
-  document.getElementById('room-code-display').innerText = code;
+  renderCode(code);
   updateLobbyUI();
   showScreen('lobby');
+  applySelectedSet();
 });
 
 socket.on('host:reconnectFailed', () => {
@@ -60,12 +120,13 @@ socket.on('host:reconnectFailed', () => {
 
 socket.on('host:reconnectData', (data) => {
   roomCode = data.code;
-  document.getElementById('room-code-display').innerText = roomCode;
+  renderCode(roomCode);
   players = data.players;
 
   if (data.state === 'lobby') {
     updateLobbyUI();
     showScreen('lobby');
+    if (data.setName) setMessage(`Đang dùng: ${data.setName} (${data.questionCount} câu)`, 'ok');
   } else if (data.state === 'question' || data.state === 'result') {
     if (data.question) {
       renderQuestion(data.question, data.state === 'result');
@@ -90,8 +151,11 @@ function updateLobbyUI() {
 
   document.getElementById('blue-count').innerText = blue.length;
   document.getElementById('red-count').innerText = red.length;
-  document.getElementById('blue-list').innerHTML = blue.map(p => `<span style="background: rgba(25,195,230,0.2); padding: 5px 10px; border-radius: 15px;">${escapeHTML(p.name)}</span>`).join('');
-  document.getElementById('red-list').innerHTML = red.map(p => `<span style="background: rgba(255,92,119,0.2); padding: 5px 10px; border-radius: 15px;">${escapeHTML(p.name)}</span>`).join('');
+  const chips = (list) => list.length
+    ? list.map(p => `<span class="player-chip">${escapeHTML(p.name)}</span>`).join('')
+    : '<span class="empty-note">Chưa có ai</span>';
+  document.getElementById('blue-list').innerHTML = chips(blue);
+  document.getElementById('red-list').innerHTML = chips(red);
 
   document.getElementById('btn-start').disabled = (blue.length === 0 && red.length === 0);
 }
@@ -114,7 +178,7 @@ function renderQuestion(q, isResultPhase) {
   document.getElementById('q-text').innerText = q.text;
   for (let i = 0; i < 4; i++) {
     const box = document.getElementById(`opt-${i}`);
-    box.className = 'option-box';
+    box.classList.remove('correct', 'dimmed'); // keep the colour class (opt-a..d)
     box.querySelector('.opt-text').innerText = q.options[i];
     const badge = box.querySelector('.count-badge');
     badge.innerText = '0';
@@ -126,15 +190,18 @@ function renderQuestion(q, isResultPhase) {
   const timeText = document.getElementById('time-text');
   const fill = document.getElementById('timer-fill');
 
+  // This runs while the quiz screen may still be hidden (no layout yet), so the
+  // bar is shrunk a moment later, once the screen is visible.
   fill.style.transition = 'none';
   fill.style.width = `${(left / q.time) * 100}%`;
-  void fill.offsetWidth; // flush so the next transition starts from here
   if (isResultPhase) {
     timeText.innerText = '0s';
   } else {
-    fill.style.transition = `width ${left}s linear`;
-    fill.style.width = '0%';
     stopCountdown = startCountdown(timeText, left);
+    resultTimeouts.push(setTimeout(() => {
+      fill.style.transition = `width ${left}s linear`;
+      fill.style.width = '0%';
+    }, 60));
   }
 
   // Stop wheels
@@ -213,15 +280,26 @@ socket.on('server:finalResult', (res) => {
   showScreen('final');
   const winText = document.getElementById('winner-text');
   if (res.winner === 'blue') {
-    winText.innerText = "ĐỘI XANH THẮNG!";
+    winText.innerText = "Đội Xanh thắng!";
     winText.style.color = "var(--blue-color)";
   } else if (res.winner === 'red') {
-    winText.innerText = "ĐỘI ĐỎ THẮNG!";
+    winText.innerText = "Đội Đỏ thắng!";
     winText.style.color = "var(--red-color)";
   } else {
-    winText.innerText = "HÒA NHAU!";
+    winText.innerText = "Hòa nhau!";
     winText.style.color = "#fff";
   }
+
+  // Podium for the first three: 2nd on the left, 1st in the middle, 3rd on the right.
+  const top3 = res.top10.slice(0, 3);
+  const slots = [1, 0, 2].filter(i => top3[i]);
+  document.getElementById('podium').innerHTML = slots.map(i => {
+    const p = top3[i];
+    return `<div class="step p${Math.min(p.rank, 3)}"><div class="rk">${p.rank}</div><div class="nm">${escapeHTML(p.name)}</div><div class="sc">${p.score} điểm</div></div>`;
+  }).join('');
+
+  const winColor = res.winner === 'blue' ? '#22c7e8' : res.winner === 'red' ? '#ff5a76' : '#ffd23f';
+  launchConfetti(document.getElementById('confetti'), [winColor, '#ffd23f', '#f4f6ff']);
 
   const tbody = document.getElementById('leaderboard-body');
   tbody.innerHTML = res.top10.map(p => `

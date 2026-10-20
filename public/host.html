@@ -4,58 +4,71 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Host - Team Quiz Battle</title>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="confetti" aria-hidden="true"></canvas>
   <div class="container">
-    
+
     <!-- LOBBY -->
     <div id="screen-lobby" class="text-center">
-      <h1>Mã Phòng: <span id="room-code-display" style="color: var(--yellow-color); font-size: 4rem;">---</span></h1>
-      <p>Người chơi hãy vào trang chơi và nhập mã này!</p>
-      
-      <div style="display: flex; justify-content: space-around; margin-top: 50px;">
-        <div style="width: 45%; background: var(--panel-bg); padding: 20px; border-radius: 12px; border-top: 5px solid var(--blue-color);">
-          <h3>Đội Xanh (<span id="blue-count">0</span>)</h3>
-          <div id="blue-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+      <div class="plate-wrap">
+        <div class="plate" id="room-code-display" aria-label="Mã phòng"></div>
+        <p class="lobby-hint">Người chơi vào trang chơi trên điện thoại và nhập mã phòng này.</p>
+      </div>
+
+      <div class="set-card">
+        <label for="set-select">Bộ câu hỏi</label>
+        <select id="set-select"></select>
+        <a class="btn-ghost" href="editor.html" target="_blank" rel="noopener">Soạn bộ câu hỏi</a>
+        <div class="set-info" id="set-info" role="status"></div>
+      </div>
+
+      <div class="teams">
+        <div class="team-panel blue">
+          <h3>Đội Xanh <span class="count display" id="blue-count">0</span></h3>
+          <div id="blue-list" class="player-list"><span class="empty-note">Chưa có ai</span></div>
         </div>
-        <div style="width: 45%; background: var(--panel-bg); padding: 20px; border-radius: 12px; border-top: 5px solid var(--red-color);">
-          <h3>Đội Đỏ (<span id="red-count">0</span>)</h3>
-          <div id="red-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+        <div class="team-panel red">
+          <h3>Đội Đỏ <span class="count display" id="red-count">0</span></h3>
+          <div id="red-list" class="player-list"><span class="empty-note">Chưa có ai</span></div>
         </div>
       </div>
+
       <div class="action-row">
         <button class="btn-back" data-action="home">← Trang chủ</button>
-        <button id="btn-start" class="btn-primary" style="font-size: 1.5rem;" disabled>Bắt đầu ngay</button>
+        <button id="btn-start" class="btn-primary" style="font-size: 1.5rem; padding: 16px 38px;" disabled>Bắt đầu ngay</button>
       </div>
     </div>
 
     <!-- QUIZ & RACING -->
     <div id="screen-quiz" class="hidden">
-      <div style="margin-bottom: 15px;">
+      <div style="margin-bottom: 14px;">
         <button class="btn-back" data-action="endgame">← Dừng ván, về sảnh</button>
       </div>
       <div class="host-header">
-        <div id="q-counter">Câu 1/15</div>
+        <div class="q-counter" id="q-counter">Câu 1/15</div>
         <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
-        <div id="time-text">20s</div>
-        <div id="answer-counter" style="margin-left: 20px;">0/0 đã trả lời</div>
+        <div class="time-text" id="time-text">20s</div>
+        <div class="answer-counter" id="answer-counter">0/0 đã trả lời</div>
       </div>
 
       <div class="question-text" id="q-text">Đang tải câu hỏi...</div>
-      
+
       <div class="options-grid">
-        <div class="option-box" id="opt-0">A. <span class="opt-text"></span><div class="count-badge">0</div></div>
-        <div class="option-box" id="opt-1">B. <span class="opt-text"></span><div class="count-badge">0</div></div>
-        <div class="option-box" id="opt-2">C. <span class="opt-text"></span><div class="count-badge">0</div></div>
-        <div class="option-box" id="opt-3">D. <span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box opt-a" id="opt-0"><span class="opt-key">▲ A</span><span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box opt-b" id="opt-1"><span class="opt-key">◆ B</span><span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box opt-c" id="opt-2"><span class="opt-key">● C</span><span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box opt-d" id="opt-3"><span class="opt-key">■ D</span><span class="opt-text"></span><div class="count-badge">0</div></div>
       </div>
 
       <div class="track-container">
         <!-- Đội Xanh -->
         <div class="track">
-          <div class="track-info" style="color: var(--blue-color);">ĐỘI XANH - <span id="score-blue">0</span>đ</div>
+          <div class="track-info" style="color: var(--lane-blue);">Đội Xanh: <span id="score-blue">0</span> điểm</div>
           <div class="finish-line"></div>
           <div class="moving-group" id="group-blue">
             <div class="chips-container" id="chips-blue"></div>
@@ -64,7 +77,7 @@
         </div>
         <!-- Đội Đỏ -->
         <div class="track">
-          <div class="track-info" style="color: var(--red-color);">ĐỘI ĐỎ - <span id="score-red">0</span>đ</div>
+          <div class="track-info" style="color: var(--flag-red);">Đội Đỏ: <span id="score-red">0</span> điểm</div>
           <div class="finish-line"></div>
           <div class="moving-group" id="group-red">
             <div class="chips-container" id="chips-red"></div>
@@ -76,9 +89,10 @@
 
     <!-- FINAL LEADERBOARD -->
     <div id="screen-final" class="hidden text-center">
-      <h1 id="winner-text" style="font-size: 4rem; margin-top: 40px;">ĐỘI THẮNG</h1>
-      <div style="max-width: 600px; margin: 40px auto; background: var(--panel-bg); padding: 20px; border-radius: 12px;">
-        <h3>Top 10 Cá nhân</h3>
+      <h1 id="winner-text" class="display winner-text">Đội thắng</h1>
+      <div class="podium" id="podium"></div>
+      <div class="board">
+        <h3 style="margin-top: 12px;">Top 10 cá nhân</h3>
         <table class="leaderboard-table">
           <thead><tr><th>Hạng</th><th>Tên</th><th>Đội</th><th>Điểm</th></tr></thead>
           <tbody id="leaderboard-body"></tbody>

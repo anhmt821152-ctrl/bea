@@ -193,13 +193,14 @@ socket.on('server:finalResult', (res) => {
 
   const winEl = document.getElementById('final-win-text');
   if (res.winner === myData.team) {
-    winEl.innerText = "ĐỘI BẠN ĐÃ THẮNG!";
+    winEl.innerText = "Đội bạn thắng!";
     winEl.style.color = "var(--success)";
+    launchConfetti(document.getElementById('confetti'), [myData.team === 'blue' ? '#22c7e8' : '#ff5a76', '#ffd23f', '#f4f6ff']);
   } else if (res.winner === 'Hòa') {
-    winEl.innerText = "HAI ĐỘI HÒA NHAU!";
+    winEl.innerText = "Hai đội hòa nhau!";
     winEl.style.color = "var(--yellow-color)";
   } else {
-    winEl.innerText = "ĐỘI BẠN ĐÃ THUA!";
+    winEl.innerText = "Đội bạn thua rồi";
     winEl.style.color = "var(--danger)";
   }
 });

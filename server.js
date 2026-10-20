@@ -14,13 +14,35 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ---------------------------------------------------------------------------
 // Questions (validated at startup so a bad data file fails loudly and early)
 // ---------------------------------------------------------------------------
-const questions = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/questions.json'), 'utf-8'));
-questions.forEach((q, i) => {
-  const ok = q && typeof q.text === 'string' && Array.isArray(q.options) && q.options.length === 4 &&
-    q.options.every((o) => typeof o === 'string') && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3;
-  if (!ok) throw new Error(`data/questions.json: cau hoi so ${i + 1} khong hop le (can text, 4 options, answer 0-3)`);
-});
-if (questions.length === 0) throw new Error('data/questions.json: khong co cau hoi nao');
+const isStr = (v) => typeof v === 'string';
+
+// Limits for question sets (also enforced for sets a host builds in the editor)
+const LIMITS = { maxText: 200, maxOption: 100, maxCustomQuestions: 50, maxName: 60 };
+
+// Returns { questions } with trimmed copies, or { error } with a message for the host.
+function cleanQuestions(list, max) {
+  if (!Array.isArray(list) || list.length === 0) return { error: 'Bộ câu hỏi đang trống.' };
+  if (list.length > max) return { error: `Tối đa ${max} câu hỏi.` };
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    const q = list[i];
+    const n = i + 1;
+    if (!q || typeof q !== 'object') return { error: `Câu ${n} không hợp lệ.` };
+    const text = isStr(q.text) ? q.text.trim() : '';
+    if (!text || text.length > LIMITS.maxText) return { error: `Câu ${n}: nội dung trống hoặc dài quá ${LIMITS.maxText} ký tự.` };
+    if (!Array.isArray(q.options) || q.options.length !== 4) return { error: `Câu ${n}: cần đúng 4 đáp án.` };
+    const options = q.options.map((o) => (isStr(o) ? o.trim() : ''));
+    if (options.some((o) => !o || o.length > LIMITS.maxOption)) return { error: `Câu ${n}: đáp án trống hoặc dài quá ${LIMITS.maxOption} ký tự.` };
+    if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) return { error: `Câu ${n}: chưa chọn đáp án đúng.` };
+    out.push({ text, options, answer: q.answer });
+  }
+  return { questions: out };
+}
+
+const DEFAULT_SET_NAME = 'Bộ câu hỏi mặc định';
+const defaultCheck = cleanQuestions(JSON.parse(fs.readFileSync(path.join(__dirname, 'data/questions.json'), 'utf-8')), 1000);
+if (defaultCheck.error) throw new Error('data/questions.json: ' + defaultCheck.error);
+const questions = defaultCheck.questions;
 
 // ---------------------------------------------------------------------------
 // Game config
@@ -55,7 +77,7 @@ const generateCode = () => {
   return code;
 };
 const generateToken = () => crypto.randomBytes(12).toString('hex');
-const isStr = (v) => typeof v === 'string';
+const defaultQuestions = () => questions.slice(0, CONFIG.maxQuestions).map((q) => ({ ...q, options: [...q.options] }));
 
 const getRoom = (code) => (isStr(code) ? rooms.get(code.toUpperCase()) : undefined);
 const getHostRoom = (socket, code) => {
@@ -101,6 +123,9 @@ setInterval(() => {
 // Health check (used by Render)
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
 
+// The built-in questions (used by the editor to copy them into a custom set)
+app.get('/api/default-questions', (req, res) => res.json({ name: DEFAULT_SET_NAME, questions }));
+
 // Team count for the join screen
 app.get('/api/room/:code', (req, res) => {
   const room = getRoom(req.params.code);
@@ -130,7 +155,7 @@ io.on('connection', (socket) => {
       players: new Map(), // pid -> playerData
       teamBlue: [], teamRed: [],
       currentQuestionIndex: -1,
-      questions: [...questions].slice(0, CONFIG.maxQuestions),
+      questions: defaultQuestions(), setName: DEFAULT_SET_NAME,
       timer: null, nextTimer: null, timeLeft: 0,
       posBlue: 0, posRed: 0,
       scoreBlue: 0, scoreRed: 0,
@@ -174,6 +199,26 @@ io.on('connection', (socket) => {
     const room = getHostRoom(socket, code);
     if (!room || room.state !== 'final') return;
     resetToLobby(room, socket);
+  }));
+
+  // Choose the question set for the next game (lobby only). The set comes from
+  // the editor in the host's browser, so it is validated again here.
+  socket.on('host:setQuestions', safe(({ code, useDefault, name, questions: list }) => {
+    const room = getHostRoom(socket, code);
+    if (!room) return;
+    if (room.state !== 'lobby') return socket.emit('host:questionsError', 'Chỉ đổi được bộ câu hỏi khi đang ở sảnh chờ.');
+
+    if (useDefault === true) {
+      room.questions = defaultQuestions();
+      room.setName = DEFAULT_SET_NAME;
+    } else {
+      const result = cleanQuestions(list, LIMITS.maxCustomQuestions);
+      if (result.error) return socket.emit('host:questionsError', result.error);
+      room.questions = result.questions;
+      room.setName = (isStr(name) && name.trim().slice(0, LIMITS.maxName)) || 'Bộ câu hỏi tùy chỉnh';
+    }
+    room.lastActive = Date.now();
+    socket.emit('host:questionsSet', { name: room.setName, count: room.questions.length });
   }));
 
   // Stop the current game and go back to the lobby, keeping the players.
@@ -318,6 +363,7 @@ function getRoomStateForHost(room) {
     players: Array.from(room.players.values()).map((p) => ({ pid: p.pid, name: p.name, team: p.team, score: p.score, online: p.online })),
     qIndex: room.currentQuestionIndex,
     question: showQuestion && room.currentQuestionIndex >= 0 ? getQuestionDTO(room) : null,
+    setName: room.setName, questionCount: room.questions.length,
     posBlue: room.posBlue, posRed: room.posRed,
     scoreBlue: room.scoreBlue, scoreRed: room.scoreRed
   };

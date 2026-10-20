@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soạn câu hỏi - Team Quiz Battle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="editor-top">
+      <a class="btn-back" href="index.html">← Trang chủ</a>
+      <h1 class="display">Soạn câu hỏi</h1>
+    </div>
+
+    <div class="editor-layout">
+      <aside class="side">
+        <h2>Các bộ câu hỏi</h2>
+        <ul class="set-list" id="set-list"></ul>
+        <div class="btns">
+          <button class="btn-primary" id="btn-new-set">Tạo bộ mới</button>
+          <button class="btn-ghost" id="btn-copy-default">Sao chép bộ mặc định</button>
+          <button class="btn-ghost" id="btn-import">Nhập từ file JSON</button>
+          <input type="file" id="file-import" accept=".json,application/json" class="hidden">
+        </div>
+      </aside>
+
+      <main class="main-ed" id="main-ed"></main>
+    </div>
+  </div>
+  <div class="toast hidden" id="toast" role="status"></div>
+
+  <script src="js/common.js"></script>
+  <script src="js/editor.js"></script>
+</body>
+</html>

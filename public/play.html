@@ -3,59 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Play - Team Quiz Battle</title>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <title>Chơi - Team Quiz Battle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="confetti" aria-hidden="true"></canvas>
   <div class="mobile-container">
-    
+
     <!-- JOIN FORM -->
     <div id="screen-join">
-      <h2 class="text-center">Vào Phòng</h2>
+      <h2 class="display join-title text-center">Vào phòng</h2>
       <div class="join-form">
-        <input type="text" id="input-code" placeholder="Mã phòng (6 ký tự)" maxlength="6" style="text-transform: uppercase;">
-        <input type="text" id="input-name" placeholder="Tên của bạn (Tối đa 16 ký tự)" maxlength="16">
+        <input type="text" id="input-code" placeholder="Mã phòng (6 ký tự)" maxlength="6" autocomplete="off" autocapitalize="characters" style="text-transform: uppercase; letter-spacing: .15em; font-weight: 700;">
+        <input type="text" id="input-name" placeholder="Tên của bạn (tối đa 16 ký tự)" maxlength="16" autocomplete="off">
         <select id="input-team">
           <option value="0">Tự chọn cân bằng</option>
           <option value="1">Đội Xanh</option>
           <option value="2">Đội Đỏ</option>
         </select>
-        <div id="team-status" style="font-size: 0.9rem; color: #aaa; text-align: center;"></div>
-        <button id="btn-join" class="btn-primary">Vào Game</button>
-        <div id="join-error" style="color: var(--danger); text-align: center; margin-top: 10px;"></div>
+        <div id="team-status" style="font-size: 0.9rem; color: var(--muted); text-align: center; min-height: 1.2em;"></div>
+        <button id="btn-join" class="btn-primary" style="font-size: 1.2rem;">Vào game</button>
+        <div id="join-error" role="alert" style="color: var(--danger); text-align: center; font-weight: 600;"></div>
       </div>
+      <p class="text-center" style="margin-top: 22px;"><a class="btn-ghost" href="index.html">← Trang chủ</a></p>
     </div>
 
     <!-- WAITING LOBBY -->
-    <div id="screen-wait" class="hidden text-center" style="margin-top: 50px;">
-      <h2>Đã vào phòng!</h2>
-      <p>Đội của bạn: <strong id="my-team-name">...</strong></p>
-      <p style="margin-top: 20px;">Đang chờ Host bắt đầu game...</p>
+    <div id="screen-wait" class="hidden text-center" style="margin-top: 60px;">
+      <h2 class="display" style="font-size: 3rem;">Đã vào phòng</h2>
+      <p style="margin-top: 14px;">Đội của bạn: <span class="team-pill" id="my-team-name">...</span></p>
+      <p style="margin-top: 26px; color: var(--muted);">Đang chờ host bắt đầu<span class="wait-dots"><span>.</span><span>.</span><span>.</span></span></p>
     </div>
 
     <!-- QUIZ PLAY -->
-    <div id="screen-quiz" class="hidden" style="display: flex; flex-direction: column; flex-grow: 1;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div id="q-counter">Câu 1/15</div>
-        <div style="font-weight: bold; font-size: 1.2rem;" id="time-text">20s</div>
+    <div id="screen-quiz" class="hidden" style="flex-direction: column; flex-grow: 1;">
+      <div class="play-top">
+        <div class="q-counter" id="q-counter">Câu 1/15</div>
+        <div class="time-text" id="time-text">20s</div>
       </div>
       <div class="play-options">
-        <button class="play-btn" onclick="selectAnswer(0)">A</button>
-        <button class="play-btn" onclick="selectAnswer(1)">B</button>
-        <button class="play-btn" onclick="selectAnswer(2)">C</button>
-        <button class="play-btn" onclick="selectAnswer(3)">D</button>
+        <button class="play-btn pb-a" onclick="selectAnswer(0)" aria-label="Đáp án A"><span class="shape">▲</span><span class="letter">A</span></button>
+        <button class="play-btn pb-b" onclick="selectAnswer(1)" aria-label="Đáp án B"><span class="shape">◆</span><span class="letter">B</span></button>
+        <button class="play-btn pb-c" onclick="selectAnswer(2)" aria-label="Đáp án C"><span class="shape">●</span><span class="letter">C</span></button>
+        <button class="play-btn pb-d" onclick="selectAnswer(3)" aria-label="Đáp án D"><span class="shape">■</span><span class="letter">D</span></button>
       </div>
-      <div id="status-text" class="text-center" style="font-weight: bold; margin-bottom: 20px; height: 20px;"></div>
+      <div id="status-text" class="status-text" role="status"></div>
     </div>
 
     <!-- RESULT PER QUESTION -->
     <div id="screen-result" class="hidden">
       <div class="result-card">
-        <h2 id="res-title">Kết quả</h2>
+        <h2 id="res-title" class="display" style="font-size: 2.6rem;">Kết quả</h2>
         <div class="points" id="res-points">+0</div>
         <div>Tổng điểm: <strong id="res-total">0</strong></div>
-        <div style="margin-top: 10px;">Chuỗi đúng: <strong id="res-streak">0</strong></div>
+        <div style="margin-top: 8px;">Chuỗi đúng: <strong id="res-streak">0</strong></div>
         <div class="rank-badge-display">
           <div class="dot" id="res-rank-dot"></div>
           <span id="res-rank-name">Đồng</span>
@@ -65,10 +69,13 @@
 
     <!-- FINAL SCREEN -->
     <div id="screen-final" class="hidden text-center" style="margin-top: 50px;">
-      <h1 id="final-win-text">Kết thúc!</h1>
-      <p>Cảm ơn bạn đã chơi.</p>
-      <p style="margin-top: 20px;">Hạng của bạn: <strong id="final-rank">...</strong></p>
-      <p>Tổng điểm: <strong id="final-score">0</strong></p>
+      <h1 id="final-win-text" class="display" style="font-size: 3.4rem;">Kết thúc</h1>
+      <p style="margin-top: 14px; color: var(--muted);">Cảm ơn bạn đã chơi.</p>
+      <div class="result-card">
+        <div>Hạng của bạn</div>
+        <div class="points" id="final-rank">...</div>
+        <div>Tổng điểm: <strong id="final-score">0</strong></div>
+      </div>
     </div>
 
   </div>

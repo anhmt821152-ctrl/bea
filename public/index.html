@@ -4,17 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Quiz Battle</title>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container text-center" style="margin-top: 100px;">
-    <h1>Trận chiến Trắc nghiệm Đồng đội</h1>
-    <p style="margin-bottom: 40px;">Hãy chọn vai trò của bạn:</p>
-    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-      <button class="btn-blue" style="font-size: 1.5rem;" onclick="window.location.href='host.html'">Tạo Phòng (Host)</button>
-      <button class="btn-primary" style="font-size: 1.5rem;" onclick="window.location.href='play.html'">Vào Chơi</button>
-    </div>
-  </div>
+  <main class="container">
+    <section class="hero">
+      <h1 class="display hero-title">
+        <span class="t-blue">Xanh</span><span class="vs">VS</span><span class="t-red">Đỏ</span><br>
+        Trắc nghiệm
+      </h1>
+      <p>Trả lời đúng và nhanh để đẩy xe của đội mình về đích trước.</p>
+    </section>
+
+    <section class="entry-grid" aria-label="Chọn vai trò">
+      <a class="entry host" href="host.html">
+        <span class="display">Tạo phòng</span>
+        <span class="sub">Dành cho host: hiện câu hỏi và đường đua trên màn hình lớn.</span>
+      </a>
+      <a class="entry play" href="play.html">
+        <span class="display">Vào chơi</span>
+        <span class="sub">Nhập mã phòng trên điện thoại rồi chọn đáp án.</span>
+      </a>
+      <a class="entry edit" href="editor.html">
+        <span class="display">Soạn câu hỏi</span>
+        <span class="sub">Tự tạo bộ câu hỏi riêng, sửa câu hỏi và đáp án.</span>
+      </a>
+    </section>
+
+    <div class="home-road" id="home-road" aria-hidden="true"></div>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script>
+    document.getElementById('home-road').innerHTML = createCarSVG('#22c7e8') + createCarSVG('#ff5a76');
+  </script>
 </body>
 </html>
