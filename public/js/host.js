@@ -234,6 +234,23 @@ socket.on('server:finalResult', (res) => {
   `).join('');
 });
 
+// Back buttons
+document.querySelectorAll('.btn-back').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.action === 'endgame') {
+      if (!confirm('Dừng ván đang chơi và quay về sảnh? Điểm của ván này sẽ bị đặt lại.')) return;
+      socket.emit('host:endGame', { code: roomCode });
+    } else {
+      if (!confirm('Đóng phòng và về trang chủ? Tất cả người chơi sẽ bị đưa ra ngoài.')) return;
+      socket.emit('host:close', { code: roomCode });
+      sessionStorage.removeItem(KEY_HOST);
+      sessionStorage.removeItem(KEY_CODE);
+      // Give the close message a moment to leave the browser before navigating.
+      setTimeout(() => { window.location.href = 'index.html'; }, 250);
+    }
+  });
+});
+
 document.getElementById('btn-play-again').addEventListener('click', () => {
   socket.emit('host:playAgain', { code: roomCode });
 });

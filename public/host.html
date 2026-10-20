@@ -25,11 +25,17 @@
           <div id="red-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
         </div>
       </div>
-      <button id="btn-start" class="btn-primary" style="margin-top: 40px; font-size: 1.5rem;" disabled>Bắt đầu ngay</button>
+      <div class="action-row">
+        <button class="btn-back" data-action="home">← Trang chủ</button>
+        <button id="btn-start" class="btn-primary" style="font-size: 1.5rem;" disabled>Bắt đầu ngay</button>
+      </div>
     </div>
 
     <!-- QUIZ & RACING -->
     <div id="screen-quiz" class="hidden">
+      <div style="margin-bottom: 15px;">
+        <button class="btn-back" data-action="endgame">← Dừng ván, về sảnh</button>
+      </div>
       <div class="host-header">
         <div id="q-counter">Câu 1/15</div>
         <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
@@ -78,7 +84,10 @@
           <tbody id="leaderboard-body"></tbody>
         </table>
       </div>
-      <button id="btn-play-again" class="btn-primary" style="font-size: 1.2rem;">Chơi lại với cùng người chơi</button>
+      <div class="action-row">
+        <button class="btn-back" data-action="home">← Trang chủ</button>
+        <button id="btn-play-again" class="btn-primary" style="font-size: 1.2rem;">Chơi lại với cùng người chơi</button>
+      </div>
     </div>
 
   </div>

@@ -173,18 +173,23 @@ io.on('connection', (socket) => {
   socket.on('host:playAgain', safe(({ code }) => {
     const room = getHostRoom(socket, code);
     if (!room || room.state !== 'final') return;
+    resetToLobby(room, socket);
+  }));
 
+  // Stop the current game and go back to the lobby, keeping the players.
+  socket.on('host:endGame', safe(({ code }) => {
+    const room = getHostRoom(socket, code);
+    if (!room || (room.state !== 'question' && room.state !== 'result')) return;
+    resetToLobby(room, socket);
+  }));
+
+  // Close the room for good: players are sent back to the join screen.
+  socket.on('host:close', safe(({ code }) => {
+    const room = getHostRoom(socket, code);
+    if (!room) return;
     clearRoomTimers(room);
-    room.state = 'lobby';
-    room.currentQuestionIndex = -1;
-    room.posBlue = 0; room.posRed = 0;
-    room.scoreBlue = 0; room.scoreRed = 0;
-    room.lastActive = Date.now();
-    for (const p of room.players.values()) {
-      p.score = 0; p.streak = 0; p.answers = [];
-    }
-    io.to(room.code).emit('server:backToLobby');
-    socket.emit('host:reconnectData', getRoomStateForHost(room));
+    io.to(room.code).emit('server:roomClosed');
+    rooms.delete(room.code);
   }));
 
   // PLAYER EVENTS
@@ -316,6 +321,20 @@ function getRoomStateForHost(room) {
     posBlue: room.posBlue, posRed: room.posRed,
     scoreBlue: room.scoreBlue, scoreRed: room.scoreRed
   };
+}
+
+function resetToLobby(room, hostSocket) {
+  clearRoomTimers(room);
+  room.state = 'lobby';
+  room.currentQuestionIndex = -1;
+  room.posBlue = 0; room.posRed = 0;
+  room.scoreBlue = 0; room.scoreRed = 0;
+  room.lastActive = Date.now();
+  for (const p of room.players.values()) {
+    p.score = 0; p.streak = 0; p.answers = [];
+  }
+  io.to(room.code).emit('server:backToLobby');
+  hostSocket.emit('host:reconnectData', getRoomStateForHost(room));
 }
 
 function countAnswers(room) {

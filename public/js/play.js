@@ -204,6 +204,14 @@ socket.on('server:finalResult', (res) => {
   }
 });
 
+socket.on('server:roomClosed', () => {
+  sessionStorage.removeItem(KEY_PID);
+  sessionStorage.removeItem(KEY_CODE);
+  stopTimer();
+  document.getElementById('join-error').innerText = 'Host đã đóng phòng.';
+  showScreen('join');
+});
+
 socket.on('server:backToLobby', () => {
   isAnswered = false;
   stopTimer();
