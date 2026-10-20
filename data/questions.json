@@ -1,0 +1,17 @@
+[
+  { "text": "Đại dương nào lớn nhất trên Trái Đất?", "options": ["Đại Tây Dương", "Thái Bình Dương", "Ấn Độ Dương", "Bắc Băng Dương"], "answer": 1 },
+  { "text": "Hành tinh nào gần Mặt Trời nhất?", "options": ["Sao Kim", "Sao Thủy", "Sao Hỏa", "Sao Mộc"], "answer": 1 },
+  { "text": "Khí nào chiếm tỉ lệ cao nhất trong khí quyển Trái Đất?", "options": ["Oxy", "Carbon Dioxide", "Nitơ", "Hydrogen"], "answer": 2 },
+  { "text": "Năm 1911, Bác Hồ ra đi tìm đường cứu nước tại bến cảng nào?", "options": ["Cảng Hải Phòng", "Cảng Sài Gòn", "Bến Nhà Rồng", "Cảng Đà Nẵng"], "answer": 2 },
+  { "text": "Tác giả của Truyện Kiều là ai?", "options": ["Nguyễn Trãi", "Nguyễn Du", "Hồ Xuân Hương", "Đoàn Thị Điểm"], "answer": 1 },
+  { "text": "Trong hóa học, ký hiệu của Vàng là gì?", "options": ["Ag", "Fe", "Au", "Cu"], "answer": 2 },
+  { "text": "Đỉnh núi Phan Xi Păng nằm ở dãy núi nào?", "options": ["Dãy Trường Sơn", "Dãy Hoàng Liên Sơn", "Dãy Tam Đảo", "Dãy Bạch Mã"], "answer": 1 },
+  { "text": "Ai là người đầu tiên đặt chân lên Mặt Trăng?", "options": ["Yuri Gagarin", "Neil Armstrong", "Buzz Aldrin", "Michael Collins"], "answer": 1 },
+  { "text": "Thành phố nào được mệnh danh là 'Thành phố ngàn hoa'?", "options": ["Đà Lạt", "Sapa", "Hà Nội", "Hội An"], "answer": 0 },
+  { "text": "Bộ phận nào của cơ thể người sản xuất ra insulin?", "options": ["Gan", "Dạ dày", "Tụy", "Thận"], "answer": 2 },
+  { "text": "Loài động vật nào có vú bay được?", "options": ["Chim cánh cụt", "Dơi", "Sóc bay", "Đà điểu"], "answer": 1 },
+  { "text": "Quốc gia nào có diện tích lớn nhất thế giới?", "options": ["Mỹ", "Trung Quốc", "Canada", "Nga"], "answer": 3 },
+  { "text": "Màu nào không có trong 7 màu cơ bản của cầu vồng?", "options": ["Đỏ", "Hồng", "Chàm", "Tím"], "answer": 1 },
+  { "text": "Tác phẩm 'Tắt đèn' là của nhà văn nào?", "options": ["Nam Cao", "Ngô Tất Tố", "Vũ Trọng Phụng", "Thạch Lam"], "answer": 1 },
+  { "text": "Trong máy tính, RAM là viết tắt của từ gì?", "options": ["Read Access Memory", "Random Access Memory", "Run Access Memory", "Rapid Access Memory"], "answer": 1 }
+]
