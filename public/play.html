@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Play - Team Quiz Battle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="mobile-container">
+    
+    <!-- JOIN FORM -->
+    <div id="screen-join">
+      <h2 class="text-center">Vào Phòng</h2>
+      <div class="join-form">
+        <input type="text" id="input-code" placeholder="Mã phòng (6 ký tự)" maxlength="6" style="text-transform: uppercase;">
+        <input type="text" id="input-name" placeholder="Tên của bạn (Tối đa 16 ký tự)" maxlength="16">
+        <select id="input-team">
+          <option value="0">Tự chọn cân bằng</option>
+          <option value="1">Đội Xanh</option>
+          <option value="2">Đội Đỏ</option>
+        </select>
+        <div id="team-status" style="font-size: 0.9rem; color: #aaa; text-align: center;"></div>
+        <button id="btn-join" class="btn-primary">Vào Game</button>
+        <div id="join-error" style="color: var(--danger); text-align: center; margin-top: 10px;"></div>
+      </div>
+    </div>
+
+    <!-- WAITING LOBBY -->
+    <div id="screen-wait" class="hidden text-center" style="margin-top: 50px;">
+      <h2>Đã vào phòng!</h2>
+      <p>Đội của bạn: <strong id="my-team-name">...</strong></p>
+      <p style="margin-top: 20px;">Đang chờ Host bắt đầu game...</p>
+    </div>
+
+    <!-- QUIZ PLAY -->
+    <div id="screen-quiz" class="hidden" style="display: flex; flex-direction: column; flex-grow: 1;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div id="q-counter">Câu 1/15</div>
+        <div style="font-weight: bold; font-size: 1.2rem;" id="time-text">20s</div>
+      </div>
+      <div class="play-options">
+        <button class="play-btn" onclick="selectAnswer(0)">A</button>
+        <button class="play-btn" onclick="selectAnswer(1)">B</button>
+        <button class="play-btn" onclick="selectAnswer(2)">C</button>
+        <button class="play-btn" onclick="selectAnswer(3)">D</button>
+      </div>
+      <div id="status-text" class="text-center" style="font-weight: bold; margin-bottom: 20px; height: 20px;"></div>
+    </div>
+
+    <!-- RESULT PER QUESTION -->
+    <div id="screen-result" class="hidden">
+      <div class="result-card">
+        <h2 id="res-title">Kết quả</h2>
+        <div class="points" id="res-points">+0</div>
+        <div>Tổng điểm: <strong id="res-total">0</strong></div>
+        <div style="margin-top: 10px;">Chuỗi đúng: <strong id="res-streak">0</strong></div>
+        <div class="rank-badge-display">
+          <div class="dot" id="res-rank-dot"></div>
+          <span id="res-rank-name">Đồng</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINAL SCREEN -->
+    <div id="screen-final" class="hidden text-center" style="margin-top: 50px;">
+      <h1 id="final-win-text">Kết thúc!</h1>
+      <p>Cảm ơn bạn đã chơi.</p>
+      <p style="margin-top: 20px;">Hạng của bạn: <strong id="final-rank">...</strong></p>
+      <p>Tổng điểm: <strong id="final-score">0</strong></p>
+    </div>
+
+  </div>
+
+  <!-- MINI TRACKER -->
+  <div class="mini-tracker hidden" id="mini-tracker">
+    <div class="mini-track"><div class="mini-car blue" id="mini-car-blue" style="left: 0%;"></div></div>
+    <div class="mini-track"><div class="mini-car red" id="mini-car-red" style="left: 0%;"></div></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/play.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host - Team Quiz Battle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    
+    <!-- LOBBY -->
+    <div id="screen-lobby" class="text-center">
+      <h1>Mã Phòng: <span id="room-code-display" style="color: var(--yellow-color); font-size: 4rem;">---</span></h1>
+      <p>Người chơi hãy vào trang chơi và nhập mã này!</p>
+      
+      <div style="display: flex; justify-content: space-around; margin-top: 50px;">
+        <div style="width: 45%; background: var(--panel-bg); padding: 20px; border-radius: 12px; border-top: 5px solid var(--blue-color);">
+          <h3>Đội Xanh (<span id="blue-count">0</span>)</h3>
+          <div id="blue-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+        </div>
+        <div style="width: 45%; background: var(--panel-bg); padding: 20px; border-radius: 12px; border-top: 5px solid var(--red-color);">
+          <h3>Đội Đỏ (<span id="red-count">0</span>)</h3>
+          <div id="red-list" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;"></div>
+        </div>
+      </div>
+      <button id="btn-start" class="btn-primary" style="margin-top: 40px; font-size: 1.5rem;" disabled>Bắt đầu ngay</button>
+    </div>
+
+    <!-- QUIZ & RACING -->
+    <div id="screen-quiz" class="hidden">
+      <div class="host-header">
+        <div id="q-counter">Câu 1/15</div>
+        <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+        <div id="time-text">20s</div>
+        <div id="answer-counter" style="margin-left: 20px;">0/0 đã trả lời</div>
+      </div>
+
+      <div class="question-text" id="q-text">Đang tải câu hỏi...</div>
+      
+      <div class="options-grid">
+        <div class="option-box" id="opt-0">A. <span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box" id="opt-1">B. <span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box" id="opt-2">C. <span class="opt-text"></span><div class="count-badge">0</div></div>
+        <div class="option-box" id="opt-3">D. <span class="opt-text"></span><div class="count-badge">0</div></div>
+      </div>
+
+      <div class="track-container">
+        <!-- Đội Xanh -->
+        <div class="track">
+          <div class="track-info" style="color: var(--blue-color);">ĐỘI XANH - <span id="score-blue">0</span>đ</div>
+          <div class="finish-line"></div>
+          <div class="moving-group" id="group-blue">
+            <div class="chips-container" id="chips-blue"></div>
+            <!-- SVG injected via JS -->
+          </div>
+        </div>
+        <!-- Đội Đỏ -->
+        <div class="track">
+          <div class="track-info" style="color: var(--red-color);">ĐỘI ĐỎ - <span id="score-red">0</span>đ</div>
+          <div class="finish-line"></div>
+          <div class="moving-group" id="group-red">
+            <div class="chips-container" id="chips-red"></div>
+            <!-- SVG injected via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINAL LEADERBOARD -->
+    <div id="screen-final" class="hidden text-center">
+      <h1 id="winner-text" style="font-size: 4rem; margin-top: 40px;">ĐỘI THẮNG</h1>
+      <div style="max-width: 600px; margin: 40px auto; background: var(--panel-bg); padding: 20px; border-radius: 12px;">
+        <h3>Top 10 Cá nhân</h3>
+        <table class="leaderboard-table">
+          <thead><tr><th>Hạng</th><th>Tên</th><th>Đội</th><th>Điểm</th></tr></thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+      <button id="btn-play-again" class="btn-primary" style="font-size: 1.2rem;">Chơi lại với cùng người chơi</button>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>
