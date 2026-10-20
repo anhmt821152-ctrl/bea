@@ -1,6 +1,83 @@
 # Team Quiz Battle
 
-Một web game trắc nghiệm thời gian thực chia làm 2 đội. Người chơi trả lời đúng/nhanh sẽ tạo ra lực đẩy để đẩy chiếc xe đua của đội mình về đích.
+**English** | [Tiếng Việt](#tiếng-việt)
+
+A real-time two-team quiz game. Players who answer correctly and quickly push their team's race car toward the finish line.
+
+## How to play
+
+1. **Open the site** on a big screen (host) and on phones (players).
+2. **Host:** click **Create Room (Host)**. A 6-character room code appears.
+3. **Players:** click **Join**, enter the room code and a name (max 16 characters), then pick a team or leave it on "balanced". Each team holds up to 30 players.
+4. **Start:** the host clicks **Start** once everyone has joined. A game uses up to 15 questions, 20 seconds each.
+5. **During the game:** players tap A/B/C/D on their phone. Correct and fast answers earn more points and push the car further; wrong answers lose points. The server moves on to the next question by itself.
+6. **End:** the team whose car got further wins (a tie is decided by total score). The host screen shows the top 10 players.
+
+Host buttons: **← Home** (lobby and final screen) closes the room and sends everyone back to the join screen. **← Stop game** (during a game) returns to the lobby, keeps the players and resets the scores. **Play again** starts a new game with the same players.
+
+## Run locally
+
+Requires Node.js >= 18.
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:3000.
+
+## Project structure
+
+```
+server.js            Express + Socket.IO server (all game rules live here)
+data/questions.json  Questions (text, 4 options, answer = 0..3). Up to 15 are used per game
+public/              Frontend: index.html, host.html, play.html, css/, js/
+```
+
+## Change the questions
+
+Edit `data/questions.json`. Every question needs `text`, exactly 4 `options` and `answer` (0 to 3, the index of the correct option). The server checks the file at startup and refuses to start if a question is invalid.
+
+## Configuration (environment variables, optional)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | 3000 | Port to listen on (Render sets it for you) |
+| `TIME_PER_QUESTION` | 20 | Seconds per question |
+| `RESULT_DELAY_MS` | 6000 | How long results are shown before the next question |
+
+## Deploy on Render.com
+
+1. Push the code to GitHub.
+2. On Render: **New +** → **Web Service** → pick this repository.
+3. Settings: Runtime **Node**, Branch `main`, Build Command `npm install`, Start Command `npm start`, Instance Type **Free**. Choose a region close to your players (for Vietnam: Singapore). Leave Root Directory empty.
+4. Under **Advanced**, set **Health Check Path** to `/healthz`.
+5. Click **Create Web Service**. When it shows **Live**, open `https://<service-name>.onrender.com`.
+
+Every push to `main` is deployed automatically (Auto-Deploy: On Commit).
+
+Free plan notes:
+- The service sleeps after about 15 minutes without traffic. The first visit after that takes 30–60 seconds, so open the site a few minutes before playing.
+- Rooms live in the server's memory. When the service sleeps, restarts or is redeployed, all rooms are lost. Deploy when nobody is playing.
+
+---
+
+# Tiếng Việt
+
+[English](#team-quiz-battle) | **Tiếng Việt**
+
+Web game trắc nghiệm thời gian thực chia làm 2 đội. Người chơi trả lời đúng và nhanh sẽ đẩy chiếc xe đua của đội mình về đích.
+
+## Cách chơi
+
+1. **Mở trang web** trên màn hình lớn (host) và trên điện thoại (người chơi).
+2. **Host:** bấm **Tạo Phòng (Host)**. Màn hình hiện mã phòng 6 ký tự.
+3. **Người chơi:** bấm **Vào Chơi**, nhập mã phòng và tên (tối đa 16 ký tự), chọn đội hoặc để "Tự chọn cân bằng". Mỗi đội tối đa 30 người.
+4. **Bắt đầu:** host bấm **Bắt đầu ngay** khi mọi người đã vào. Một ván có tối đa 15 câu, mỗi câu 20 giây.
+5. **Trong lúc chơi:** người chơi bấm A/B/C/D trên điện thoại. Trả lời đúng và nhanh được nhiều điểm và đẩy xe đi xa hơn, trả lời sai bị trừ điểm. Server tự sang câu tiếp theo.
+6. **Kết thúc:** đội có xe đi xa hơn thắng (hòa thì so tổng điểm). Màn hình host hiện top 10 cá nhân.
+
+Các nút của host: **← Trang chủ** (ở sảnh chờ và màn kết quả) đóng phòng và đưa mọi người về màn nhập mã. **← Dừng ván, về sảnh** (khi đang chơi) quay về sảnh, giữ người chơi và đặt lại điểm. **Chơi lại với cùng người chơi** bắt đầu ván mới với những người đã vào.
 
 ## Chạy trên máy
 
@@ -11,15 +88,19 @@ npm install
 npm start
 ```
 
-Mở http://localhost:3000. Chọn **Tạo Phòng (Host)** trên màn hình lớn, người chơi chọn **Vào Chơi** trên điện thoại rồi nhập mã phòng 6 ký tự.
+Mở http://localhost:3000.
 
-## Cấu trúc
+## Cấu trúc dự án
 
 ```
 server.js            Máy chủ Express + Socket.IO (toàn bộ luật chơi nằm ở đây)
-data/questions.json  Câu hỏi (text, 4 options, answer = 0..3). Tối đa 15 câu được dùng mỗi ván
+data/questions.json  Câu hỏi (text, 4 options, answer = 0..3). Mỗi ván dùng tối đa 15 câu
 public/              Giao diện: index.html, host.html, play.html, css/, js/
 ```
+
+## Đổi câu hỏi
+
+Sửa file `data/questions.json`. Mỗi câu cần `text`, đúng 4 `options` và `answer` (từ 0 đến 3, là vị trí của đáp án đúng). Server kiểm tra file này khi khởi động và sẽ không chạy nếu có câu không hợp lệ.
 
 ## Cấu hình (biến môi trường, không bắt buộc)
 
@@ -27,17 +108,20 @@ public/              Giao diện: index.html, host.html, play.html, css/, js/
 |---|---|---|
 | `PORT` | 3000 | Cổng chạy (Render tự đặt) |
 | `TIME_PER_QUESTION` | 20 | Số giây mỗi câu |
-| `RESULT_DELAY_MS` | 6000 | Thời gian hiển thị kết quả trước khi sang câu tiếp |
+| `RESULT_DELAY_MS` | 6000 | Thời gian hiện kết quả trước khi sang câu tiếp |
 
 ## Triển khai trên Render.com
 
-1. Đưa code lên GitHub (repo này).
-2. Trên Render: **New +** → **Web Service** → chọn repo.
-3. Cài đặt: Runtime **Node**, Build Command `npm install`, Start Command `npm start`.
-4. Chọn gói, bấm **Create Web Service**. Khi xong, dùng địa chỉ `https://<tên>.onrender.com`.
-5. Health Check Path (tùy chọn): `/healthz`.
+1. Đưa code lên GitHub.
+2. Trên Render: **New +** → **Web Service** → chọn repo này.
+3. Cài đặt: Runtime **Node**, Branch `main`, Build Command `npm install`, Start Command `npm start`, Instance Type **Free**. Chọn region gần người chơi (ở Việt Nam: Singapore). Để trống Root Directory.
+4. Trong **Advanced**, đặt **Health Check Path** là `/healthz`.
+5. Bấm **Create Web Service**. Khi hiện **Live**, mở `https://<tên-dịch-vụ>.onrender.com`.
 
-Lưu ý: phòng chơi nằm trong bộ nhớ của máy chủ. Gói Free sẽ ngủ sau ~15 phút không có truy cập và khi đó mọi phòng bị mất; hãy mở trang trước giờ chơi vài phút. Khi triển khai bản mới, các ván đang chơi cũng bị mất.
+Mỗi lần đẩy code lên `main`, Render tự triển khai lại (Auto-Deploy: On Commit).
+
+Lưu ý với gói Free:
+- Dịch vụ ngủ sau khoảng 15 phút không có truy cập. Lần mở đầu sau đó mất 30–60 giây, nên hãy mở trang trước giờ chơi vài phút.
+- Phòng chơi nằm trong bộ nhớ của máy chủ. Khi dịch vụ ngủ, khởi động lại hoặc triển khai bản mới, mọi phòng đều mất. Hãy cập nhật khi không có ai đang chơi.
 
 Contributors: @nguyenvanhoanglong478-source, @anhmt821152-ctrl, @Claude
-
