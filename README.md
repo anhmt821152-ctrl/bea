@@ -43,7 +43,9 @@ You write questions in the lobby, right after creating a room: the room code sta
 3. Changes are saved automatically **in this browser** (on the host's device). They are not stored on the server, so use **Export JSON** to keep a backup or move a set to another device, and **Import from JSON file** to bring it back.
 4. Click **Use for the host's room** on the set, or pick it in the **Question set** list on the Players tab. You can only change it in the lobby. A set that is not complete is never used: the room falls back to the default set and tells you. The choice is remembered for the next room.
 
-Limits: question up to 200 characters, each answer up to 100 characters.
+5. **Answer time:** on the Players tab, pick **Time per question** for the whole room (5 to 300 seconds; the default is 20). In the editor, each question can also have its own **Answer time**; a question with its own time keeps it, the others follow the room's time. Faster answers score more points relative to that question's time.
+
+Limits: question up to 200 characters, each answer up to 100 characters, time 5 to 300 seconds.
 
 To change the built-in questions instead, edit `data/questions.json`. Every question needs `text`, exactly 4 `options` and `answer` (0 to 3, the index of the correct option). The server checks the file at startup and refuses to start if a question is invalid.
 
@@ -52,7 +54,7 @@ To change the built-in questions instead, edit `data/questions.json`. Every ques
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | 3000 | Port to listen on (Render sets it for you) |
-| `TIME_PER_QUESTION` | 20 | Seconds per question |
+| `TIME_PER_QUESTION` | 20 | Starting seconds per question (the host can change it in the lobby) |
 | `RESULT_DELAY_MS` | 6000 | How long results are shown before the next question |
 
 ## Deploy on Render.com
@@ -116,7 +118,9 @@ Bạn soạn câu hỏi ngay trong sảnh chờ, sau khi tạo phòng: mã phòn
 3. Thay đổi được lưu tự động **ngay trong trình duyệt này** (trên thiết bị của host), không lưu trên máy chủ. Hãy dùng **Xuất JSON** để sao lưu hoặc chuyển bộ câu hỏi sang thiết bị khác, và **Nhập từ file JSON** để đưa lại vào.
 4. Bấm **Dùng cho phòng của host** ở bộ vừa soạn, hoặc chọn bộ trong danh sách **Bộ câu hỏi** ở tab Người chơi. Chỉ đổi được khi đang ở sảnh chờ. Bộ chưa hoàn chỉnh sẽ không được dùng: phòng tự quay về bộ mặc định và báo cho bạn. Lựa chọn được nhớ cho phòng lần sau.
 
-Giới hạn: câu hỏi tối đa 200 ký tự, mỗi đáp án tối đa 100 ký tự.
+5. **Thời gian trả lời:** ở tab Người chơi, chọn **Thời gian mỗi câu** cho cả phòng (từ 5 đến 300 giây, mặc định 20). Trong trình soạn, mỗi câu còn có thể đặt **Thời gian trả lời** riêng; câu có thời gian riêng thì giữ nguyên, các câu còn lại theo thời gian của phòng. Trả lời càng nhanh càng được nhiều điểm so với thời gian của chính câu đó.
+
+Giới hạn: câu hỏi tối đa 200 ký tự, mỗi đáp án tối đa 100 ký tự, thời gian 5 đến 300 giây.
 
 Muốn đổi các câu có sẵn của game thì sửa file `data/questions.json`. Mỗi câu cần `text`, đúng 4 `options` và `answer` (từ 0 đến 3, là vị trí của đáp án đúng). Server kiểm tra file này khi khởi động và sẽ không chạy nếu có câu không hợp lệ.
 
@@ -125,7 +129,7 @@ Muốn đổi các câu có sẵn của game thì sửa file `data/questions.jso
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `PORT` | 3000 | Cổng chạy (Render tự đặt) |
-| `TIME_PER_QUESTION` | 20 | Số giây mỗi câu |
+| `TIME_PER_QUESTION` | 20 | Số giây mỗi câu ban đầu (host đổi được trong sảnh chờ) |
 | `RESULT_DELAY_MS` | 6000 | Thời gian hiện kết quả trước khi sang câu tiếp |
 
 ## Triển khai trên Render.com

@@ -71,12 +71,12 @@ function applySelectedSet() {
     store.selected = DEFAULT_SET_ID;
     saveSetStore(store);
     refreshSetSelect();
-    return socket.emit('host:setQuestions', { code: roomCode, useDefault: true });
+    return socket.emit('host:setQuestions', { code: roomCode, useDefault: true, time: store.defaultTime });
   }
   if (store.selected === DEFAULT_SET_ID || !set) {
-    socket.emit('host:setQuestions', { code: roomCode, useDefault: true });
+    socket.emit('host:setQuestions', { code: roomCode, useDefault: true, time: store.defaultTime });
   } else {
-    socket.emit('host:setQuestions', { code: roomCode, name: set.name, questions: set.questions });
+    socket.emit('host:setQuestions', { code: roomCode, name: set.name, questions: set.questions, time: store.defaultTime });
   }
 }
 
@@ -86,12 +86,31 @@ setSelect.addEventListener('change', () => {
   saveSetStore(store);
   applySelectedSet();
 });
-socket.on('host:questionsSet', ({ name, count }) => {
-  setMessage(`${setNote ? setNote + ' ' : ''}Đang dùng: ${name} (${count} câu)`, setNote ? 'error' : 'ok');
+socket.on('host:questionsSet', ({ name, count, time }) => {
+  showTimeChoice(time);
+  setMessage(`${setNote ? setNote + ' ' : ''}Đang dùng: ${name} (${count} câu), ${time} giây mỗi câu`, setNote ? 'error' : 'ok');
   setNote = '';
 });
 socket.on('host:questionsError', (msg) => setMessage(msg, 'error'));
 refreshSetSelect();
+
+// ---- Default time per question (questions with their own time keep it) ----
+const timeSelect = document.getElementById('time-select');
+
+function showTimeChoice(seconds) {
+  const values = TIME_CHOICES.slice();
+  if (validTime(seconds) && !values.includes(seconds)) { values.push(seconds); values.sort((a, b) => a - b); }
+  timeSelect.innerHTML = values.map(t => `<option value="${t}">${t} giây</option>`).join('');
+  if (validTime(seconds)) timeSelect.value = String(seconds);
+}
+showTimeChoice(loadSetStore().defaultTime || 20);
+
+timeSelect.addEventListener('change', () => {
+  const store = loadSetStore();
+  store.defaultTime = Number(timeSelect.value);
+  saveSetStore(store);
+  applySelectedSet();
+});
 
 // ---- Lobby tabs: "Người chơi" and "Câu hỏi" (the editor) ----
 function showTab(name) {
@@ -162,7 +181,10 @@ socket.on('host:reconnectData', (data) => {
   if (data.state === 'lobby') {
     updateLobbyUI();
     showScreen('lobby');
-    if (data.setName) setMessage(`Đang dùng: ${data.setName} (${data.questionCount} câu)`, 'ok');
+    if (data.setName) {
+      showTimeChoice(data.defaultTime);
+      setMessage(`Đang dùng: ${data.setName} (${data.questionCount} câu), ${data.defaultTime} giây mỗi câu`, 'ok');
+    }
   } else if (data.state === 'question' || data.state === 'result') {
     if (data.question) {
       renderQuestion(data.question, data.state === 'result');

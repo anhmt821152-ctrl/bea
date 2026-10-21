@@ -17,7 +17,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const isStr = (v) => typeof v === 'string';
 
 // Limits for question sets (also enforced for sets a host builds in the editor)
-const LIMITS = { maxText: 200, maxOption: 100, maxCustomQuestions: 50, maxName: 60 };
+const LIMITS = { maxText: 200, maxOption: 100, maxCustomQuestions: 50, maxName: 60, minTime: 5, maxTime: 300 };
+const validTime = (t) => Number.isInteger(t) && t >= LIMITS.minTime && t <= LIMITS.maxTime;
 
 // Returns { questions } with trimmed copies, or { error } with a message for the host.
 function cleanQuestions(list, max) {
@@ -34,7 +35,11 @@ function cleanQuestions(list, max) {
     const options = q.options.map((o) => (isStr(o) ? o.trim() : ''));
     if (options.some((o) => !o || o.length > LIMITS.maxOption)) return { error: `Câu ${n}: đáp án trống hoặc dài quá ${LIMITS.maxOption} ký tự.` };
     if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) return { error: `Câu ${n}: chưa chọn đáp án đúng.` };
-    out.push({ text, options, answer: q.answer });
+    // Optional time limit for this question only (seconds); otherwise the room default is used.
+    if (q.time !== undefined && q.time !== null && !validTime(q.time)) return { error: `Câu ${n}: thời gian phải từ ${LIMITS.minTime} đến ${LIMITS.maxTime} giây.` };
+    const item = { text, options, answer: q.answer };
+    if (validTime(q.time)) item.time = q.time;
+    out.push(item);
   }
   return { questions: out };
 }
@@ -77,6 +82,8 @@ const generateCode = () => {
   return code;
 };
 const generateToken = () => crypto.randomBytes(12).toString('hex');
+// Seconds for a question: its own limit if it has one, else the room's default.
+const questionTime = (room, q) => q.time || room.defaultTime;
 const defaultQuestions = () => questions.slice(0, CONFIG.maxQuestions).map((q) => ({ ...q, options: [...q.options] }));
 
 const getRoom = (code) => (isStr(code) ? rooms.get(code.toUpperCase()) : undefined);
@@ -155,7 +162,7 @@ io.on('connection', (socket) => {
       players: new Map(), // pid -> playerData
       teamBlue: [], teamRed: [],
       currentQuestionIndex: -1,
-      questions: defaultQuestions(), setName: DEFAULT_SET_NAME,
+      questions: defaultQuestions(), setName: DEFAULT_SET_NAME, defaultTime: CONFIG.timePerQuestion,
       timer: null, nextTimer: null, timeLeft: 0,
       posBlue: 0, posRed: 0,
       scoreBlue: 0, scoreRed: 0,
@@ -203,10 +210,15 @@ io.on('connection', (socket) => {
 
   // Choose the question set for the next game (lobby only). The set comes from
   // the editor in the host's browser, so it is validated again here.
-  socket.on('host:setQuestions', safe(({ code, useDefault, name, questions: list }) => {
+  socket.on('host:setQuestions', safe(({ code, useDefault, name, questions: list, time }) => {
     const room = getHostRoom(socket, code);
     if (!room) return;
     if (room.state !== 'lobby') return socket.emit('host:questionsError', 'Chỉ đổi được bộ câu hỏi khi đang ở sảnh chờ.');
+
+    // Default time per question for this room (optional; keeps the current one if left out)
+    if (time !== undefined && time !== null) {
+      if (!validTime(time)) return socket.emit('host:questionsError', `Thời gian mỗi câu phải từ ${LIMITS.minTime} đến ${LIMITS.maxTime} giây.`);
+    }
 
     if (useDefault === true) {
       room.questions = defaultQuestions();
@@ -217,8 +229,9 @@ io.on('connection', (socket) => {
       room.questions = result.questions;
       room.setName = (isStr(name) && name.trim().slice(0, LIMITS.maxName)) || 'Bộ câu hỏi tùy chỉnh';
     }
+    if (validTime(time)) room.defaultTime = time;
     room.lastActive = Date.now();
-    socket.emit('host:questionsSet', { name: room.setName, count: room.questions.length });
+    socket.emit('host:questionsSet', { name: room.setName, count: room.questions.length, time: room.defaultTime });
   }));
 
   // Stop the current game and go back to the lobby, keeping the players.
@@ -350,7 +363,7 @@ function getQuestionDTO(room) {
     total: room.questions.length,
     text: q.text,
     options: q.options,
-    time: CONFIG.timePerQuestion,
+    time: questionTime(room, q),
     timeLeft: room.timeLeft
   };
 }
@@ -363,7 +376,7 @@ function getRoomStateForHost(room) {
     players: Array.from(room.players.values()).map((p) => ({ pid: p.pid, name: p.name, team: p.team, score: p.score, online: p.online })),
     qIndex: room.currentQuestionIndex,
     question: showQuestion && room.currentQuestionIndex >= 0 ? getQuestionDTO(room) : null,
-    setName: room.setName, questionCount: room.questions.length,
+    setName: room.setName, questionCount: room.questions.length, defaultTime: room.defaultTime,
     posBlue: room.posBlue, posRed: room.posRed,
     scoreBlue: room.scoreBlue, scoreRed: room.scoreRed
   };
@@ -406,7 +419,7 @@ function checkAllAnswered(room) {
 
 function startQuestion(room) {
   clearRoomTimers(room);
-  room.timeLeft = CONFIG.timePerQuestion;
+  room.timeLeft = questionTime(room, room.questions[room.currentQuestionIndex]);
   room.state = 'question';
   room.lastActive = Date.now();
 
@@ -428,6 +441,7 @@ function endQuestion(room) {
   const qIndex = room.currentQuestionIndex;
   const q = room.questions[qIndex];
   const correctOption = q.answer;
+  const qTime = questionTime(room, q);
 
   let forceBlue = 0, forceRed = 0;
   const playerResults = {};
@@ -446,9 +460,9 @@ function endQuestion(room) {
       isCorrect = (ansRec.answer === correctOption);
       if (isCorrect) {
         p.streak++;
-        points = CONFIG.pointsCorrectBase + Math.floor(CONFIG.pointsCorrectSpeedMax * (ansRec.timeRemaining / CONFIG.timePerQuestion));
+        points = CONFIG.pointsCorrectBase + Math.floor(CONFIG.pointsCorrectSpeedMax * (ansRec.timeRemaining / qTime));
         if (p.streak >= 3) points += CONFIG.pointsCorrectStreak;
-        force = CONFIG.pushForceCorrectMin + (CONFIG.pushForceCorrectMax - CONFIG.pushForceCorrectMin) * (ansRec.timeRemaining / CONFIG.timePerQuestion);
+        force = CONFIG.pushForceCorrectMin + (CONFIG.pushForceCorrectMax - CONFIG.pushForceCorrectMin) * (ansRec.timeRemaining / qTime);
       } else {
         p.streak = 0;
         points = CONFIG.pointsIncorrect;

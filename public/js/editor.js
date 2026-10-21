@@ -160,7 +160,7 @@ function renderQuestionCard(set, q, index) {
     el('button', { class: 'btn-ghost btn-small', type: 'button', 'aria-label': 'Chuyển câu xuống', onclick: move(1), text: '↓' }),
     el('button', { class: 'btn-ghost btn-small', type: 'button', text: 'Nhân đôi', onclick: () => {
       if (set.questions.length >= MAX_QUESTIONS) return toast(`Tối đa ${MAX_QUESTIONS} câu mỗi bộ.`);
-      set.questions.splice(index + 1, 0, { id: uid(), text: q.text, options: [...q.options], answer: q.answer });
+      set.questions.splice(index + 1, 0, { id: uid(), text: q.text, options: [...q.options], answer: q.answer, ...(validTime(q.time) ? { time: q.time } : {}) });
       persistSoon(); renderMain();
     } }),
     el('button', { class: 'btn-danger btn-small', type: 'button', text: 'Xóa câu', onclick: () => {
@@ -175,6 +175,19 @@ function renderQuestionCard(set, q, index) {
   text.value = q.text;
   text.addEventListener('input', () => { q.text = text.value; persistSoon(); refreshCard(); });
   card.appendChild(text);
+
+  // Optional time limit for this question; empty means "use the room's default".
+  const timeSel = el('select', { 'aria-label': `Thời gian trả lời câu ${index + 1}` });
+  timeSel.appendChild(el('option', { value: '', text: 'Theo mặc định của phòng' }));
+  const choices = TIME_CHOICES.slice();
+  if (validTime(q.time) && !choices.includes(q.time)) { choices.push(q.time); choices.sort((a, b) => a - b); }
+  choices.forEach(t => timeSel.appendChild(el('option', { value: String(t), text: `${t} giây` })));
+  timeSel.value = validTime(q.time) ? String(q.time) : '';
+  timeSel.addEventListener('change', () => {
+    if (timeSel.value === '') delete q.time; else q.time = Number(timeSel.value);
+    persistSoon(); refreshCard();
+  });
+  card.appendChild(el('div', { class: 'time-row' }, [el('label', { text: 'Thời gian trả lời' }), timeSel]));
 
   q.options.forEach((opt, k) => {
     const input = el('input', { type: 'text', maxlength: '100', placeholder: `Đáp án ${LETTERS[k]}`, 'aria-label': `Đáp án ${LETTERS[k]} của câu ${index + 1}` });
@@ -235,7 +248,7 @@ function exportSet() {
   const set = activeSet();
   if (!set) return;
   // Same shape as data/questions.json, so the file can be re-imported or used on the server.
-  const data = set.questions.map(q => ({ text: q.text.trim(), options: q.options.map(o => o.trim()), answer: q.answer }));
+  const data = set.questions.map(q => ({ text: q.text.trim(), options: q.options.map(o => o.trim()), answer: q.answer, ...(validTime(q.time) ? { time: q.time } : {}) }));
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -259,7 +272,8 @@ function importQuestions(raw, fallbackName) {
       id: uid(),
       text: typeof item.text === 'string' ? item.text : '',
       options: Array.isArray(item.options) ? item.options.slice(0, 4).map(o => (typeof o === 'string' ? o : String(o ?? ''))) : [],
-      answer: item.answer
+      answer: item.answer,
+      ...(validTime(item.time) ? { time: item.time } : {})
     } : null;
     while (q && q.options.length < 4) q.options.push('');
     if (q && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3 && q.text.trim()) good.push(q); else skipped++;

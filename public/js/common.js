@@ -76,13 +76,21 @@ function launchConfetti(canvas, colors) {
 // ---------------------------------------------------------------------------
 const SETS_KEY = 'qb.sets.v1';
 const DEFAULT_SET_ID = 'default';
+// Seconds a question stays open. Same limits as the server.
+const MIN_TIME = 5;
+const MAX_TIME = 300;
+const TIME_CHOICES = [10, 15, 20, 30, 45, 60, 90, 120];
+const validTime = (t) => Number.isInteger(t) && t >= MIN_TIME && t <= MAX_TIME;
 
 function loadSetStore() {
     try {
         const raw = JSON.parse(localStorage.getItem(SETS_KEY));
-        if (raw && Array.isArray(raw.sets)) return { sets: raw.sets, selected: raw.selected || DEFAULT_SET_ID };
+        if (raw && Array.isArray(raw.sets)) {
+            // defaultTime is null until the host picks one; then the server's default is used.
+            return { sets: raw.sets, selected: raw.selected || DEFAULT_SET_ID, defaultTime: validTime(raw.defaultTime) ? raw.defaultTime : null };
+        }
     } catch (e) {}
-    return { sets: [], selected: DEFAULT_SET_ID };
+    return { sets: [], selected: DEFAULT_SET_ID, defaultTime: null };
 }
 
 function saveSetStore(store) {
@@ -97,6 +105,7 @@ function questionProblems(q) {
     if (!Array.isArray(q.options) || q.options.length !== 4 || q.options.some(o => !o || !String(o).trim())) problems.push('Cần điền đủ 4 đáp án');
     else if (q.options.some(o => String(o).trim().length > 100)) problems.push('Có đáp án dài quá 100 ký tự');
     if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer > 3) problems.push('Chưa chọn đáp án đúng');
+    if (q.time !== undefined && q.time !== null && !validTime(q.time)) problems.push(`Thời gian phải từ ${MIN_TIME} đến ${MAX_TIME} giây`);
     return problems;
 }
 
