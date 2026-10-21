@@ -4,6 +4,7 @@ Mọi thay đổi được commit vào repo này đều được ghi lại tại
 
 ## 2026-10-21
 
+- Sửa giao diện điện thoại: ô chọn bộ câu hỏi và thời gian ở sảnh chờ không còn tràn ra ngoài khung.
 - Thêm chỉnh thời gian trả lời: host chọn thời gian mỗi câu cho cả phòng ở sảnh chờ (5–300 giây), và mỗi câu trong trình soạn có thể có thời gian riêng. Server kiểm tra lại giá trị; điểm thưởng tốc độ tính theo thời gian của từng câu. `TIME_PER_QUESTION` giờ chỉ là giá trị ban đầu.
 - Gộp trình soạn câu hỏi vào sảnh chờ của host (tab "Người chơi" và "Câu hỏi"), mã phòng luôn hiện khi đang soạn. Bỏ trang `editor.html` và thẻ "Soạn câu hỏi" ở trang chủ. Bộ câu hỏi chưa hoàn chỉnh không bao giờ được dùng: phòng tự quay về bộ mặc định và báo cho host.
 - Thêm trình soạn câu hỏi: tạo bộ riêng, thêm/sửa/xóa/đổi thứ tự/nhân đôi câu hỏi, chọn đáp án đúng, nhập và xuất file JSON. Bộ câu hỏi lưu trong trình duyệt của host.
