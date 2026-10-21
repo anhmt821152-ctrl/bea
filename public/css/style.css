@@ -133,7 +133,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .entry span.sub { color: var(--muted); font-size: .98rem; line-height: 1.45; display: block; }
 .entry.host .display { color: var(--lane-blue); }
 .entry.play .display { color: var(--signal); }
-.entry.edit .display { color: var(--flag-red); }
 .home-road {
   position: relative; height: 96px; margin-top: 56px; border-radius: 14px; overflow: hidden;
   background:
@@ -324,9 +323,14 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .mini-car.blue { background: var(--lane-blue); box-shadow: 0 0 12px var(--lane-blue); }
 .mini-car.red { background: var(--flag-red); box-shadow: 0 0 12px var(--flag-red); }
 
+/* ---------- Lobby tabs ---------- */
+.tabs { display: flex; justify-content: center; gap: 10px; margin: 26px 0 4px; }
+.tab { background: transparent; color: var(--muted); border: 2px solid var(--pit-2); box-shadow: none; padding: 10px 26px; border-radius: 999px; font-weight: 700; }
+.tab:hover:not(:disabled) { color: var(--chalk); }
+.tab.active { background: var(--signal); color: #1b1600; border-color: var(--signal); }
+.panel-left { text-align: left; margin-top: 22px; }
+
 /* ---------- Editor ---------- */
-.editor-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
-.editor-top h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0; flex: 1; }
 .editor-layout { display: grid; grid-template-columns: 290px 1fr; gap: 24px; align-items: start; }
 .side { background: var(--pit); border-radius: 18px; padding: 16px; box-shadow: 0 7px 0 rgba(0, 0, 0, .45); position: sticky; top: 16px; }
 .side h2 { font-size: 1.4rem; margin-bottom: 10px; }
@@ -373,7 +377,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .side { position: static; }
 }
 @media (max-width: 700px) {
-  .editor-top h1 { flex-basis: 100%; order: 2; }
   .options-grid { grid-template-columns: 1fr; }
   .host-header { flex-wrap: wrap; }
   .teams { flex-direction: column; }

@@ -1,5 +1,6 @@
-// Question set editor. Sets live in this browser (localStorage); the host page
-// sends the chosen set to the server when a room is created or the set is changed.
+// Question set editor, shown in the "Câu hỏi" tab of the host lobby. Sets live in
+// this browser (localStorage); host.js sends the chosen set to the server.
+(function () {
 const MAX_SETS = 30;
 const MAX_QUESTIONS = 50;
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -97,6 +98,7 @@ function renderMain() {
   const useBtn = el('button', { class: 'btn-ghost btn-small', type: 'button', id: 'btn-use', onclick: () => {
     if (!setIsReady(set)) return toast('Hãy hoàn thành mọi câu hỏi trước khi dùng bộ này.');
     store.selected = set.id; persist(); refreshHeaderState();
+    window.dispatchEvent(new Event('qb:selection'));
     toast('Đã chọn bộ này. Host sẽ dùng nó khi tạo phòng.');
   } , text: 'Dùng cho phòng của host' });
   const actions = el('div', { class: 'name-row' }, [
@@ -111,7 +113,7 @@ function renderMain() {
   if (!set.questions.length) {
     main.appendChild(el('div', { class: 'empty-state', text: 'Bộ này chưa có câu hỏi. Bấm "Thêm câu hỏi" để bắt đầu.' }));
   }
-  set.questions.forEach((q, i) => main.appendChild(renderQuestion(set, q, i)));
+  set.questions.forEach((q, i) => main.appendChild(renderQuestionCard(set, q, i)));
   refreshHeaderState();
 }
 
@@ -135,7 +137,7 @@ function refreshHeaderState() {
   }
 }
 
-function renderQuestion(set, q, index) {
+function renderQuestionCard(set, q, index) {
   const card = el('section', { class: 'q-edit' });
   const problems = el('div', { class: 'problems' });
   const refreshCard = () => {
@@ -299,3 +301,13 @@ $('btn-copy-default').addEventListener('click', async () => {
 
 function renderAll() { renderSide(); renderMain(); }
 renderAll();
+
+// The host page calls this when the tab is opened, to pick up the current selection.
+window.questionEditor = {
+  reload() {
+    store = loadSetStore();
+    if (!store.sets.some(s => s.id === activeId)) activeId = store.sets.length ? store.sets[0].id : null;
+    renderAll();
+  }
+};
+})();

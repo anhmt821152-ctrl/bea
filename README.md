@@ -31,17 +31,17 @@ Open http://localhost:3000.
 ```
 server.js            Express + Socket.IO server (all game rules live here)
 data/questions.json  Questions (text, 4 options, answer = 0..3). Up to 15 are used per game
-public/              Frontend: index.html, host.html, play.html, editor.html, css/, js/
+public/              Frontend: index.html, host.html (lobby + question editor), play.html, css/, js/
 ```
 
 ## Make your own questions
 
-Open **Edit questions** on the home page (`/editor.html`).
+You write questions in the lobby, right after creating a room: the room code stays on screen, so players can already join while you edit. Click **Create Room (Host)**, then open the **Questions** tab (or **Edit question set** on the Players tab).
 
 1. Click **New set** and name it, or **Copy the default set** to start from the built-in questions.
 2. **Add question**, type the question and the 4 answers, and tick the correct one. Use ↑ ↓ to reorder, **Duplicate** or **Delete question** as needed. A set holds up to 50 questions and every question must be complete before the set can be used.
 3. Changes are saved automatically **in this browser** (on the host's device). They are not stored on the server, so use **Export JSON** to keep a backup or move a set to another device, and **Import from JSON file** to bring it back.
-4. On the host page, choose the set in the **Question set** list (the lobby only). The choice is remembered for the next room.
+4. Click **Use for the host's room** on the set, or pick it in the **Question set** list on the Players tab. You can only change it in the lobby. A set that is not complete is never used: the room falls back to the default set and tells you. The choice is remembered for the next room.
 
 Limits: question up to 200 characters, each answer up to 100 characters.
 
@@ -104,17 +104,17 @@ Mở http://localhost:3000.
 ```
 server.js            Máy chủ Express + Socket.IO (toàn bộ luật chơi nằm ở đây)
 data/questions.json  Câu hỏi (text, 4 options, answer = 0..3). Mỗi ván dùng tối đa 15 câu
-public/              Giao diện: index.html, host.html, play.html, editor.html, css/, js/
+public/              Giao diện: index.html, host.html (sảnh chờ + soạn câu hỏi), play.html, css/, js/
 ```
 
 ## Tự tạo câu hỏi
 
-Mở **Soạn câu hỏi** ở trang chủ (`/editor.html`).
+Bạn soạn câu hỏi ngay trong sảnh chờ, sau khi tạo phòng: mã phòng vẫn hiện trên màn hình nên người chơi có thể vào trong lúc bạn đang sửa. Bấm **Tạo Phòng (Host)**, rồi mở tab **Câu hỏi** (hoặc nút **Soạn bộ câu hỏi** ở tab Người chơi).
 
 1. Bấm **Tạo bộ mới** và đặt tên, hoặc **Sao chép bộ mặc định** để bắt đầu từ các câu có sẵn.
 2. Bấm **Thêm câu hỏi**, nhập câu hỏi và 4 đáp án, rồi tích vào đáp án đúng. Dùng ↑ ↓ để đổi thứ tự, **Nhân đôi** hoặc **Xóa câu** khi cần. Mỗi bộ có tối đa 50 câu và mọi câu phải điền đủ thì bộ mới dùng được.
 3. Thay đổi được lưu tự động **ngay trong trình duyệt này** (trên thiết bị của host), không lưu trên máy chủ. Hãy dùng **Xuất JSON** để sao lưu hoặc chuyển bộ câu hỏi sang thiết bị khác, và **Nhập từ file JSON** để đưa lại vào.
-4. Ở trang host, chọn bộ trong danh sách **Bộ câu hỏi** (chỉ đổi được khi đang ở sảnh chờ). Lựa chọn được nhớ cho phòng lần sau.
+4. Bấm **Dùng cho phòng của host** ở bộ vừa soạn, hoặc chọn bộ trong danh sách **Bộ câu hỏi** ở tab Người chơi. Chỉ đổi được khi đang ở sảnh chờ. Bộ chưa hoàn chỉnh sẽ không được dùng: phòng tự quay về bộ mặc định và báo cho bạn. Lựa chọn được nhớ cho phòng lần sau.
 
 Giới hạn: câu hỏi tối đa 200 ký tự, mỗi đáp án tối đa 100 ký tự.
 

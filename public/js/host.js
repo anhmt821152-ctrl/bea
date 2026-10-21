@@ -22,6 +22,8 @@ function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
   screens[name].classList.remove('hidden');
   inLobby = (name === 'lobby');
+  // Coming back to the lobby always shows the player tab.
+  if (inLobby && typeof showTab === 'function') showTab('players');
 }
 
 // The room code is shown like a number plate, one tile per character.
@@ -30,7 +32,7 @@ function renderCode(code) {
     Array.from(code).map(c => `<span class="ch">${escapeHTML(c)}</span>`).join('');
 }
 
-// ---- Question set (made in editor.html, stored in this browser) ----
+// ---- Question set (made in the "Câu hỏi" tab, stored in this browser) ----
 const setSelect = document.getElementById('set-select');
 const setInfo = document.getElementById('set-info');
 
@@ -57,10 +59,20 @@ function refreshSetSelect() {
   if (!usable) { store.selected = DEFAULT_SET_ID; saveSetStore(store); }
 }
 
+let setNote = ''; // shown once, in front of the next "Đang dùng" message
+
 function applySelectedSet() {
   if (!roomCode || !inLobby) return;
   const store = loadSetStore();
   const set = store.sets.find(s => s.id === store.selected);
+  if (set && !setIsReady(set)) {
+    // A set that is still being written can't be played: fall back to the default one.
+    setNote = `Bộ "${set.name || 'chưa đặt tên'}" chưa hoàn chỉnh nên tạm dùng bộ mặc định.`;
+    store.selected = DEFAULT_SET_ID;
+    saveSetStore(store);
+    refreshSetSelect();
+    return socket.emit('host:setQuestions', { code: roomCode, useDefault: true });
+  }
   if (store.selected === DEFAULT_SET_ID || !set) {
     socket.emit('host:setQuestions', { code: roomCode, useDefault: true });
   } else {
@@ -74,11 +86,35 @@ setSelect.addEventListener('change', () => {
   saveSetStore(store);
   applySelectedSet();
 });
-socket.on('host:questionsSet', ({ name, count }) => setMessage(`Đang dùng: ${name} (${count} câu)`, 'ok'));
+socket.on('host:questionsSet', ({ name, count }) => {
+  setMessage(`${setNote ? setNote + ' ' : ''}Đang dùng: ${name} (${count} câu)`, setNote ? 'error' : 'ok');
+  setNote = '';
+});
 socket.on('host:questionsError', (msg) => setMessage(msg, 'error'));
-// Coming back from the editor tab: pick up new or changed sets.
-window.addEventListener('focus', () => { refreshSetSelect(); applySelectedSet(); });
 refreshSetSelect();
+
+// ---- Lobby tabs: "Người chơi" and "Câu hỏi" (the editor) ----
+function showTab(name) {
+  const questions = name === 'questions';
+  document.getElementById('panel-players').classList.toggle('hidden', questions);
+  document.getElementById('panel-questions').classList.toggle('hidden', !questions);
+  document.querySelectorAll('.tabs .tab').forEach(t => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (questions) {
+    if (window.questionEditor) window.questionEditor.reload();
+  } else {
+    // Back to the lobby: send the chosen set (possibly just edited) to the server.
+    applySelectedSet(); // first: it may need to explain a fallback to the default set
+    refreshSetSelect();
+  }
+}
+document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+document.getElementById('btn-open-editor').addEventListener('click', () => showTab('questions'));
+// "Dùng cho phòng của host" in the editor
+window.addEventListener('qb:selection', () => { applySelectedSet(); refreshSetSelect(); });
 
 function clearResultTimeouts() {
   resultTimeouts.forEach(clearTimeout);

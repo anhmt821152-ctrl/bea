@@ -4,7 +4,8 @@ Mọi thay đổi được commit vào repo này đều được ghi lại tại
 
 ## 2026-10-21
 
-- Thêm trang soạn câu hỏi `editor.html`: tạo bộ riêng, thêm/sửa/xóa/đổi thứ tự/nhân đôi câu hỏi, chọn đáp án đúng, nhập và xuất file JSON. Bộ câu hỏi lưu trong trình duyệt của host.
+- Gộp trình soạn câu hỏi vào sảnh chờ của host (tab "Người chơi" và "Câu hỏi"), mã phòng luôn hiện khi đang soạn. Bỏ trang `editor.html` và thẻ "Soạn câu hỏi" ở trang chủ. Bộ câu hỏi chưa hoàn chỉnh không bao giờ được dùng: phòng tự quay về bộ mặc định và báo cho host.
+- Thêm trình soạn câu hỏi: tạo bộ riêng, thêm/sửa/xóa/đổi thứ tự/nhân đôi câu hỏi, chọn đáp án đúng, nhập và xuất file JSON. Bộ câu hỏi lưu trong trình duyệt của host.
 - Host chọn bộ câu hỏi ở sảnh chờ; server kiểm tra lại dữ liệu (`host:setQuestions`) và có thêm `/api/default-questions`.
 - Làm lại toàn bộ giao diện theo phong cách đua xe: mã phòng dạng biển số, ô đáp án có màu và hình, đường đua có vạch đích, bục podium và pháo giấy khi có đội thắng, đáp án 2x2 trên điện thoại.
 - Sửa lỗi: ô đáp án mất màu sau câu đầu, thanh thời gian không chạy, tên tệp xuất JSON có dấu bị mất.

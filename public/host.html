@@ -20,10 +20,16 @@
         <p class="lobby-hint">Người chơi vào trang chơi trên điện thoại và nhập mã phòng này.</p>
       </div>
 
+      <div class="tabs" role="tablist" aria-label="Sảnh chờ">
+        <button class="tab active" id="tab-players" role="tab" aria-selected="true" aria-controls="panel-players" data-tab="players">Người chơi</button>
+        <button class="tab" id="tab-questions" role="tab" aria-selected="false" aria-controls="panel-questions" data-tab="questions">Câu hỏi</button>
+      </div>
+
+      <section id="panel-players" role="tabpanel" aria-labelledby="tab-players">
       <div class="set-card">
         <label for="set-select">Bộ câu hỏi</label>
         <select id="set-select"></select>
-        <a class="btn-ghost" href="editor.html" target="_blank" rel="noopener">Soạn bộ câu hỏi</a>
+        <button class="btn-ghost btn-small" type="button" id="btn-open-editor">Soạn bộ câu hỏi</button>
         <div class="set-info" id="set-info" role="status"></div>
       </div>
 
@@ -42,6 +48,27 @@
         <button class="btn-back" data-action="home">← Trang chủ</button>
         <button id="btn-start" class="btn-primary" style="font-size: 1.5rem; padding: 16px 38px;" disabled>Bắt đầu ngay</button>
       </div>
+      </section>
+
+      <!-- Question editor (see js/editor.js) -->
+      <section id="panel-questions" class="hidden panel-left" role="tabpanel" aria-labelledby="tab-questions">
+        <div class="editor-layout">
+          <aside class="side">
+            <h2>Các bộ câu hỏi</h2>
+            <ul class="set-list" id="set-list"></ul>
+            <div class="btns">
+              <button class="btn-primary" type="button" id="btn-new-set">Tạo bộ mới</button>
+              <button class="btn-ghost" type="button" id="btn-copy-default">Sao chép bộ mặc định</button>
+              <button class="btn-ghost" type="button" id="btn-import">Nhập từ file JSON</button>
+              <input type="file" id="file-import" accept=".json,application/json" class="hidden">
+            </div>
+          </aside>
+          <div class="main-ed" id="main-ed"></div>
+        </div>
+        <div class="action-row">
+          <button class="btn-primary" type="button" data-tab="players">Xong, về sảnh chờ</button>
+        </div>
+      </section>
     </div>
 
     <!-- QUIZ & RACING -->
@@ -106,8 +133,11 @@
 
   </div>
 
+  <div class="toast hidden" id="toast" role="status"></div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/common.js"></script>
   <script src="js/host.js"></script>
+  <script src="js/editor.js"></script>
 </body>
 </html>
