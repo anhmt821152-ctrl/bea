@@ -2,6 +2,14 @@
 
 Mọi thay đổi được commit vào repo này đều được ghi lại tại đây, mục mới nhất nằm trên cùng.
 
+## 2026-10-22
+
+- Thêm tài khoản admin duy nhất để khóa phía host: trang đăng nhập `login.html`, `host.html` cùng script của nó chỉ phục vụ khi đã đăng nhập, mọi lệnh `host:*` qua Socket.IO bị chặn nếu chưa đăng nhập. Người chơi vẫn vào bằng mã phòng, không cần tài khoản.
+- Tài khoản đặt bằng biến môi trường `ADMIN_USER` và `ADMIN_PASSWORD` (tối thiểu 8 ký tự); thiếu mật khẩu thì không ai làm host được. Đăng nhập bằng cookie có chữ ký, hiệu lực 7 ngày, có nút "Đăng xuất admin" ở sảnh chờ.
+- Sai mật khẩu 5 lần thì địa chỉ đó bị khóa 15 phút.
+- `/api/default-questions` (có kèm đáp án đúng) chỉ trả về cho admin đã đăng nhập, để người chơi không xem trước được đáp án.
+- README hướng dẫn đặt `ADMIN_PASSWORD` khi chạy máy và khi triển khai trên Render.
+
 ## 2026-10-21
 
 - Sửa giao diện điện thoại: ô chọn bộ câu hỏi và thời gian ở sảnh chờ không còn tràn ra ngoài khung.

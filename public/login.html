@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Đăng nhập Admin - Team Quiz Battle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="mobile-container">
+    <h2 class="text-center" style="margin-top: 40px;">Đăng nhập Admin</h2>
+    <p class="text-center" style="opacity: 0.8; margin-bottom: 20px;">Chỉ admin mới tạo được phòng. Người chơi không cần đăng nhập.</p>
+    <form id="login-form" class="join-form" autocomplete="on">
+      <input type="text" id="input-user" name="username" placeholder="Tên đăng nhập" autocomplete="username" maxlength="64" required>
+      <input type="password" id="input-pass" name="password" placeholder="Mật khẩu" autocomplete="current-password" maxlength="128" required>
+      <button type="submit" id="btn-login" class="btn-primary">Đăng nhập</button>
+      <div id="login-error" role="alert" style="color: var(--danger); text-align: center; min-height: 1.5em;"></div>
+    </form>
+    <div class="text-center" style="margin-top: 20px;">
+      <a href="index.html" style="color: var(--text-light);">← Về trang chủ</a>
+    </div>
+  </div>
+  <script src="js/login.js"></script>
+</body>
+</html>

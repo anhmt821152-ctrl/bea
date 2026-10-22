@@ -156,6 +156,17 @@ socket.on('connect', () => {
   }
 });
 
+// The server rejects every host command from a browser that isn't logged in
+// (never logged in, or the 7-day login expired).
+socket.on('host:unauthorized', () => {
+  window.location.href = 'login.html';
+});
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (err) {}
+  window.location.href = 'login.html';
+});
+
 socket.on('roomCreated', ({ code, hostKey }) => {
   roomCode = code;
   players = [];

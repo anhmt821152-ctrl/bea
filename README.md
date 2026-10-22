@@ -21,17 +21,25 @@ Requires Node.js >= 18.
 
 ```bash
 npm install
-npm start
+ADMIN_PASSWORD='your-strong-password' npm start
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Players need no login; the host logs in at `/login.html`.
+
+## Admin login
+
+Only the host side is locked: `host.html` (and its scripts) and every host command over Socket.IO need the admin login. Players just open the site and join with a room code.
+
+- One account, set with `ADMIN_USER` and `ADMIN_PASSWORD` (environment variables, never in the code or the repo). If the password is missing or shorter than 8 characters, nobody can host.
+- The login lasts 7 days (a signed `HttpOnly` cookie, so it survives server restarts). Use **Đăng xuất admin** in the lobby to log out. Changing the password logs everyone out.
+- After 5 wrong passwords an address is locked out for 15 minutes.
 
 ## Project structure
 
 ```
 server.js            Express + Socket.IO server (all game rules live here)
 data/questions.json  Questions (text, 4 options, answer = 0..3). Up to 15 are used per game
-public/              Frontend: index.html, host.html (lobby + question editor), play.html, css/, js/
+public/              Frontend: index.html, login.html, host.html (lobby + question editor), play.html, css/, js/
 ```
 
 ## Make your own questions
@@ -53,6 +61,9 @@ To change the built-in questions instead, edit `data/questions.json`. Every ques
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `ADMIN_PASSWORD` | (none) | **Required to host.** Password of the single admin account, at least 8 characters. Without it the host page stays locked |
+| `ADMIN_USER` | admin | Admin user name |
+| `SESSION_SECRET` | (derived) | Optional. Secret used to sign the login cookie; by default it is derived from the user name and password |
 | `PORT` | 3000 | Port to listen on (Render sets it for you) |
 | `TIME_PER_QUESTION` | 20 | Starting seconds per question (the host can change it in the lobby) |
 | `RESULT_DELAY_MS` | 6000 | How long results are shown before the next question |
@@ -62,7 +73,7 @@ To change the built-in questions instead, edit `data/questions.json`. Every ques
 1. Push the code to GitHub.
 2. On Render: **New +** → **Web Service** → pick this repository.
 3. Settings: Runtime **Node**, Branch `main`, Build Command `npm install`, Start Command `npm start`, Instance Type **Free**. Choose a region close to your players (for Vietnam: Singapore). Leave Root Directory empty.
-4. Under **Advanced**, set **Health Check Path** to `/healthz`.
+4. Under **Advanced**, set **Health Check Path** to `/healthz`, and add the environment variable `ADMIN_PASSWORD` (a strong password, at least 8 characters). Optionally add `ADMIN_USER`.
 5. Click **Create Web Service**. When it shows **Live**, open `https://<service-name>.onrender.com`.
 
 Every push to `main` is deployed automatically (Auto-Deploy: On Commit).
@@ -96,10 +107,18 @@ Yêu cầu: Node.js >= 18.
 
 ```bash
 npm install
-npm start
+ADMIN_PASSWORD='mat-khau-manh-cua-ban' npm start
 ```
 
-Mở http://localhost:3000.
+Mở http://localhost:3000. Người chơi không cần đăng nhập; host đăng nhập tại `/login.html`.
+
+## Đăng nhập admin
+
+Chỉ phía host bị khóa: `host.html` (cùng các script của nó) và mọi lệnh của host qua Socket.IO đều cần đăng nhập admin. Người chơi cứ mở web và vào bằng mã phòng.
+
+- Một tài khoản duy nhất, đặt bằng `ADMIN_USER` và `ADMIN_PASSWORD` (biến môi trường, không ghi trong code hay repo). Nếu thiếu mật khẩu hoặc mật khẩu dưới 8 ký tự thì không ai làm host được.
+- Đăng nhập có hiệu lực 7 ngày (cookie `HttpOnly` có chữ ký, nên không mất khi server khởi động lại). Bấm **Đăng xuất admin** ở sảnh chờ để thoát. Đổi mật khẩu sẽ đăng xuất tất cả.
+- Sai mật khẩu 5 lần, địa chỉ đó bị khóa 15 phút.
 
 ## Cấu trúc dự án
 
@@ -128,6 +147,9 @@ Muốn đổi các câu có sẵn của game thì sửa file `data/questions.jso
 
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
+| `ADMIN_PASSWORD` | (không có) | **Bắt buộc để làm host.** Mật khẩu của tài khoản admin duy nhất, tối thiểu 8 ký tự. Nếu thiếu, trang host bị khóa |
+| `ADMIN_USER` | admin | Tên đăng nhập admin |
+| `SESSION_SECRET` | (tự sinh) | Không bắt buộc. Khóa dùng để ký cookie đăng nhập; mặc định được sinh từ tên đăng nhập và mật khẩu |
 | `PORT` | 3000 | Cổng chạy (Render tự đặt) |
 | `TIME_PER_QUESTION` | 20 | Số giây mỗi câu ban đầu (host đổi được trong sảnh chờ) |
 | `RESULT_DELAY_MS` | 6000 | Thời gian hiện kết quả trước khi sang câu tiếp |
@@ -137,7 +159,7 @@ Muốn đổi các câu có sẵn của game thì sửa file `data/questions.jso
 1. Đưa code lên GitHub.
 2. Trên Render: **New +** → **Web Service** → chọn repo này.
 3. Cài đặt: Runtime **Node**, Branch `main`, Build Command `npm install`, Start Command `npm start`, Instance Type **Free**. Chọn region gần người chơi (ở Việt Nam: Singapore). Để trống Root Directory.
-4. Trong **Advanced**, đặt **Health Check Path** là `/healthz`.
+4. Trong **Advanced**, đặt **Health Check Path** là `/healthz` và thêm biến môi trường `ADMIN_PASSWORD` (mật khẩu mạnh, tối thiểu 8 ký tự). Có thể thêm `ADMIN_USER`.
 5. Bấm **Create Web Service**. Khi hiện **Live**, mở `https://<tên-dịch-vụ>.onrender.com`.
 
 Mỗi lần đẩy code lên `main`, Render tự triển khai lại (Auto-Deploy: On Commit).

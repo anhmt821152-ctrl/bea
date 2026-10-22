@@ -9,6 +9,136 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Render (and most hosts) put a proxy in front: trust exactly one hop so that
+// req.ip / req.secure describe the real visitor, not a spoofable header.
+app.set('trust proxy', 1);
+app.use(express.json({ limit: '1kb' }));
+
+// ---------------------------------------------------------------------------
+// Admin login. Only the host side is locked; players join with a room code.
+// One admin account, configured through environment variables (never in code).
+// ---------------------------------------------------------------------------
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const MIN_PASSWORD_LENGTH = 8;
+const AUTH_ENABLED = ADMIN_PASSWORD.length >= MIN_PASSWORD_LENGTH;
+// Fail closed: without a usable password nobody can host, instead of everybody.
+if (!AUTH_ENABLED) {
+  console.warn(ADMIN_PASSWORD
+    ? `ADMIN_PASSWORD qua ngan (can it nhat ${MIN_PASSWORD_LENGTH} ky tu): trang host dang bi khoa.`
+    : 'Chua dat ADMIN_PASSWORD: trang host dang bi khoa. Dat ADMIN_PASSWORD (va ADMIN_USER) roi khoi dong lai.');
+}
+
+const COOKIE_NAME = 'bea_admin';
+const SESSION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+// Sessions are stateless (a signed expiry time), so they survive server restarts.
+// Changing the admin password also logs every old session out.
+const SESSION_SECRET = process.env.SESSION_SECRET ||
+  crypto.createHmac('sha256', 'bea-admin-session-v1').update(`${ADMIN_USER}\n${ADMIN_PASSWORD}`).digest('hex');
+
+const sign = (text) => crypto.createHmac('sha256', SESSION_SECRET).update(text).digest('hex');
+const digest = (s) => crypto.createHash('sha256').update(String(s)).digest();
+// Constant-time comparison (hashing first makes both sides the same length).
+const safeEqual = (a, b) => crypto.timingSafeEqual(digest(a), digest(b));
+
+function createSessionToken() {
+  const exp = String(Date.now() + SESSION_MS);
+  return `${exp}.${sign(exp)}`;
+}
+
+// Returns the expiry time (ms) of a valid token, or 0.
+function verifySessionToken(token) {
+  if (!AUTH_ENABLED || !isStr(token)) return 0;
+  const dot = token.indexOf('.');
+  if (dot < 1) return 0;
+  const exp = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = sign(exp);
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return 0;
+  const expMs = Number(exp);
+  return Number.isFinite(expMs) && expMs > Date.now() ? expMs : 0;
+}
+
+function readCookie(header, name) {
+  if (!isStr(header)) return '';
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) {
+      try { return decodeURIComponent(part.slice(i + 1).trim()); } catch (err) { return ''; }
+    }
+  }
+  return '';
+}
+
+const adminExpiry = (req) => verifySessionToken(readCookie(req.headers.cookie, COOKIE_NAME));
+
+function setSessionCookie(req, res, token, maxAgeMs) {
+  const attrs = [`${COOKIE_NAME}=${token}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${Math.floor(maxAgeMs / 1000)}`];
+  if (req.secure) attrs.push('Secure');
+  res.setHeader('Set-Cookie', attrs.join('; '));
+}
+
+// Wrong-password limiter: 5 failures from one address lock it out for 15 minutes.
+const LOGIN_MAX_FAILS = 5;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+const loginFails = new Map(); // ip -> { count, until }
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, rec] of loginFails.entries()) if (rec.until < now) loginFails.delete(ip);
+}, 10 * 60 * 1000).unref();
+
+const HOST_FILES = new Set(['/host.html', '/js/host.js', '/js/editor.js']);
+
+// The host page and its scripts are only served to a logged-in admin. The path is
+// decoded and normalised first so /%68ost.html, /HOST.html or /js/../host.html
+// can't slip past the check.
+app.use((req, res, next) => {
+  let p;
+  try { p = path.posix.normalize(decodeURIComponent(req.path)).toLowerCase(); } catch (err) { return res.status(400).end(); }
+  if (!HOST_FILES.has(p)) return next();
+  if (!AUTH_ENABLED) {
+    return res.status(503).type('text').send('Trang host dang bi khoa: chua cau hinh ADMIN_PASSWORD tren may chu.');
+  }
+  if (adminExpiry(req)) return next();
+  return p === '/host.html' ? res.redirect('/login.html') : res.status(401).end();
+});
+
+app.post('/api/login', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!AUTH_ENABLED) return res.status(503).json({ error: 'Máy chủ chưa cấu hình tài khoản admin.' });
+
+  const rec = loginFails.get(req.ip);
+  if (rec && rec.until > Date.now()) {
+    const mins = Math.ceil((rec.until - Date.now()) / 60000);
+    res.set('Retry-After', String(mins * 60));
+    return res.status(429).json({ error: `Đăng nhập sai quá nhiều lần. Thử lại sau ${mins} phút.` });
+  }
+
+  const { username, password } = req.body || {};
+  // Both are always checked so the response time doesn't reveal which was wrong.
+  const userOk = isStr(username) && safeEqual(username, ADMIN_USER);
+  const passOk = isStr(password) && safeEqual(password, ADMIN_PASSWORD);
+
+  if (userOk && passOk) {
+    loginFails.delete(req.ip);
+    setSessionCookie(req, res, createSessionToken(), SESSION_MS);
+    return res.json({ ok: true });
+  }
+
+  const count = (rec && rec.until === 0 ? rec.count : 0) + 1;
+  loginFails.set(req.ip, count >= LOGIN_MAX_FAILS
+    ? { count: 0, until: Date.now() + LOGIN_LOCK_MS }
+    : { count, until: 0 });
+  // A small delay makes guessing slow even before the lockout.
+  setTimeout(() => res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu.' }), 400);
+});
+
+app.post('/api/logout', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  setSessionCookie(req, res, '', 0);
+  res.json({ ok: true });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------------------------------------------------------------------------
@@ -131,7 +261,12 @@ setInterval(() => {
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
 
 // The built-in questions (used by the editor to copy them into a custom set)
-app.get('/api/default-questions', (req, res) => res.json({ name: DEFAULT_SET_NAME, questions }));
+// It includes the correct answers, so only the logged-in admin may read it.
+app.get('/api/default-questions', (req, res) => {
+  if (!adminExpiry(req)) return res.status(401).json({ error: 'Cần đăng nhập admin.' });
+  res.set('Cache-Control', 'no-store');
+  res.json({ name: DEFAULT_SET_NAME, questions });
+});
 
 // Team count for the join screen
 app.get('/api/room/:code', (req, res) => {
@@ -148,7 +283,24 @@ app.get('/api/room/:code', (req, res) => {
 // ---------------------------------------------------------------------------
 // Socket events
 // ---------------------------------------------------------------------------
+// Who is the admin? Decided once, from the login cookie sent with the connection.
+io.use((socket, next) => {
+  socket.data.adminUntil = adminExpiry({ headers: socket.handshake.headers });
+  next();
+});
+
 io.on('connection', (socket) => {
+
+  // Every host:* event needs the admin login, so a stranger can't create a room
+  // or control a game by talking to the socket directly.
+  socket.use((packet, next) => {
+    const event = packet[0];
+    if (isStr(event) && event.startsWith('host:') && !(socket.data.adminUntil > Date.now())) {
+      socket.emit('host:unauthorized');
+      return; // dropped: the handler never sees it
+    }
+    next();
+  });
 
   // HOST EVENTS
   socket.on('host:create', safe(() => {
