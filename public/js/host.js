@@ -21,6 +21,7 @@ let inLobby = true;
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
   screens[name].classList.remove('hidden');
+  if (name === 'quiz') fitTracks();
   inLobby = (name === 'lobby');
   // Coming back to the lobby always shows the player tab.
   if (inLobby && typeof showTab === 'function') showTab('players');
@@ -416,17 +417,49 @@ function updateChips() {
   containerBlue.innerHTML = '';
   containerRed.innerHTML = '';
 
+  // Both lanes use the same chip size (from the bigger team) so the race looks fair.
+  const biggest = Math.max(players.filter(p => p.team === 'blue').length, players.filter(p => p.team === 'red').length);
+  const density = biggest > 16 ? ' packed' : biggest > 8 ? ' dense' : '';
+  containerBlue.className = `chips-container${density}`;
+  containerRed.className = `chips-container${density}`;
+
   players.forEach(p => {
     const badge = getBadge(p.score || 0);
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.id = `chip-${p.pid}`;
-    chip.innerHTML = `<div class="badge-dot" style="background: ${badge.color}"></div><span>${escapeHTML(p.name)}</span>`;
+    chip.title = p.name; // full name on hover, since long names are shortened when crowded
+    chip.innerHTML = `<div class="badge-dot" style="background: ${badge.color}"></div><span>${escapeHTML(chipLabel(p.name, density))}</span>`;
 
     if (p.team === 'blue') containerBlue.appendChild(chip);
     else containerRed.appendChild(chip);
   });
+  fitTracks();
 }
+
+// Crowded rooms show only the given name (the last words of a Vietnamese name),
+// which is what people recognise; the full name stays in the tooltip.
+function chipLabel(name, density) {
+  const words = String(name).trim().split(/\s+/);
+  if (density === ' packed') return words.slice(-1).join(' ');
+  if (density === ' dense') return words.slice(-2).join(' ');
+  return name;
+}
+
+// The chips stack upward from the bottom of each lane. Make both lanes as tall as
+// the tallest stack needs, so a crowded room grows the lanes downward instead of
+// spilling up over the answer boxes.
+const TRACK_MIN_HEIGHT = 138;
+const TRACK_EXTRA = 12 + 34 + 20; // car gap under the stack + team label + road borders
+function fitTracks() {
+  const groups = ['group-blue', 'group-red'].map(id => document.getElementById(id));
+  const tracks = groups.map(g => g.parentElement);
+  const tallest = Math.max(...groups.map(g => g.offsetHeight));
+  if (!tallest) return; // quiz screen is hidden: measured again when it is shown
+  const height = Math.max(TRACK_MIN_HEIGHT, tallest + TRACK_EXTRA);
+  tracks.forEach(t => { t.style.height = `${height}px`; });
+}
+window.addEventListener('resize', fitTracks);
 
 function updateTrack(posB, posR, scoreB, scoreR) {
   // Max transform is to leave space for the car so it doesn't overflow right

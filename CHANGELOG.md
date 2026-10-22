@@ -4,6 +4,7 @@ Mọi thay đổi được commit vào repo này đều được ghi lại tại
 
 ## 2026-10-22
 
+- Sửa lỗi màn hình host: khi phòng đông người, các chip người chơi xếp chồng lên trên và che mất khung đáp án (và đè lên đường đua của đội kia). Giờ khung đua tự cao lên vừa đủ chứa chip, nên chip không còn chồng lên đáp án. Khi phòng đông (trên 8 người một đội) chip nhỏ lại và chỉ hiện tên gọi (từ cuối của họ tên), rê chuột vào chip để xem tên đầy đủ. Hai đội luôn dùng cùng cỡ chip và cùng độ cao đường đua để cuộc đua công bằng.
 - Thêm `package-lock.json` để mọi lần cài đặt (kể cả trên Render) dùng đúng cùng phiên bản thư viện.
 - Thêm tài khoản admin duy nhất để khóa phía host: trang đăng nhập `login.html`, `host.html` cùng script của nó chỉ phục vụ khi đã đăng nhập, mọi lệnh `host:*` qua Socket.IO bị chặn nếu chưa đăng nhập. Người chơi vẫn vào bằng mã phòng, không cần tài khoản.
 - Tài khoản đặt bằng biến môi trường `ADMIN_USER` và `ADMIN_PASSWORD` (tối thiểu 8 ký tự); thiếu mật khẩu thì không ai làm host được. Đăng nhập bằng cookie có chữ ký, hiệu lực 7 ngày, có nút "Đăng xuất admin" ở sảnh chờ.
